@@ -66,6 +66,7 @@ type explorerDataSource interface {
 	FillAddressTransactions(addrInfo *AddressInfo) error
 	BlockMissedVotes(blockHash string) ([]string, error)
 	AgendaVotes(agendaID string, chartType int) (*dbtypes.AgendaVoteChoices, error)
+	TicketPriceChartDetails() ([][]uint64, error)
 }
 
 // TicketStatusText generates the text to display on the explorer's transaction
@@ -196,7 +197,8 @@ func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource
 		log.Errorf("Unable to create new html template: %v", err)
 		return nil
 	}
-	tmpls := []string{"home", "explorer", "mempool", "block", "tx", "address", "rawtx", "error", "parameters", "agenda", "agendas"}
+	tmpls := []string{"home", "explorer", "mempool", "block", "tx", "address",
+		"rawtx", "error", "parameters", "agenda", "agendas", "charts"}
 
 	tempDefaults := []string{"extras"}
 
