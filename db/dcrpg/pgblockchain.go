@@ -945,6 +945,10 @@ func (pgb *ChainDB) DeindexAll() error {
 		warnUnlessNotExists(err)
 		errAny = err
 	}
+	if err = DeindexBlockTableOnHeight(pgb.db); err != nil {
+		warnUnlessNotExists(err)
+		errAny = err
+	}
 	if err = DeindexTransactionTableOnHashes(pgb.db); err != nil {
 		warnUnlessNotExists(err)
 		errAny = err
@@ -1018,8 +1022,12 @@ func (pgb *ChainDB) DeindexAll() error {
 
 // IndexAll creates all of the indexes in all tables
 func (pgb *ChainDB) IndexAll() error {
-	log.Infof("Indexing blocks table...")
+	log.Infof("Indexing blocks table on tx_hash...")
 	if err := IndexBlockTableOnHash(pgb.db); err != nil {
+		return err
+	}
+	log.Infof("Indexing blocks table on height...")
+	if err := IndexBlockTableOnHeight(pgb.db); err != nil {
 		return err
 	}
 	log.Infof("Indexing transactions table on tx/block hashes...")

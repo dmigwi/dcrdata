@@ -102,6 +102,10 @@ const (
 	// SelectBlocksTicketPrice selects the ticket price for the 144th block
 	SelectBlocksTicketPrice = `select sbits, time from blocks where height % 144 = 0 order by time`
 
+	IndexBlocksTableOnHeight = `CREATE INDEX uix_height_index ON blocks(height);`
+
+	DeindexBlocksTableOnHeight = `DROP INDEX uix_height_index;`
+
 	UpdateBlockNext = `UPDATE block_chain set next_hash = $2 WHERE block_db_id = $1;`
 )
 

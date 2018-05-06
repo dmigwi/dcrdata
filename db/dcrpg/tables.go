@@ -362,8 +362,18 @@ func IndexBlockTableOnHash(db *sql.DB) (err error) {
 	return
 }
 
+func IndexBlockTableOnHeight(db *sql.DB) (err error) {
+	_, err = db.Exec(internal.IndexBlocksTableOnHeight)
+	return
+}
+
 func DeindexBlockTableOnHash(db *sql.DB) (err error) {
 	_, err = db.Exec(internal.DeindexBlockTableOnHash)
+	return
+}
+
+func DeindexBlockTableOnHeight(db *sql.DB) (err error) {
+	_, err = db.Exec(internal.DeindexBlocksTableOnHeight)
 	return
 }
 
