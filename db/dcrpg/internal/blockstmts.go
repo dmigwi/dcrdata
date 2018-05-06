@@ -99,6 +99,9 @@ const (
 
 	SelectBlockChainRowIDByHash = `select block_db_id from block_chain where this_hash = $1;`
 
+	// SelectBlocksTicketPrice selects the ticket price for the 144th block
+	SelectBlocksTicketPrice = `select sbits, time from blocks where height % 144 = 0 order by time`
+
 	UpdateBlockNext = `UPDATE block_chain set next_hash = $2 WHERE block_db_id = $1;`
 )
 
