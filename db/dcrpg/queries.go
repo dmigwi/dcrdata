@@ -1347,10 +1347,11 @@ func RetrieveVoutValue(db *sql.DB, txHash string, voutIndex uint32) (value uint6
 	return
 }
 
-// RetrieveTicketPriceByTxHashTime fetches the ticket price and its timestamp that are used
-// to display the ticket price variation on ticket price chart.
-func RetrieveTicketPriceByTxHashTime(db *sql.DB) (items []dbtypes.TicketPriceChart, err error) {
-	rows, err := db.Query(internal.SelectBlocksTicketPrice)
+// RetrieveTicketsPriceByHeight fetches the ticket price and its timestamp that are used
+// to display the ticket price variation on ticket price chart. This data is fetched at an interval
+// of 144 blocks.
+func RetrieveTicketsPriceByHeight(db *sql.DB) (items []dbtypes.TicketPriceChart, err error) {
+	rows, err := db.Query(internal.SelectBlocksTicketsPrice)
 	if err != nil {
 		return
 	}
@@ -1363,14 +1364,45 @@ func RetrieveTicketPriceByTxHashTime(db *sql.DB) (items []dbtypes.TicketPriceCha
 
 	for rows.Next() {
 		var timestamp, price uint64
-		err = rows.Scan(&price, &timestamp)
+		var difficulty float64
+		err = rows.Scan(&price, &timestamp, &difficulty)
 		if err != nil {
 			return
 		}
 
 		items = append(items, dbtypes.TicketPriceChart{
-			Time:  time.Unix(int64(timestamp), 0).Format("2006/01/02 15:04:05"),
-			SBits: price,
+			Time:       time.Unix(int64(timestamp), 0).Format("2006/01/02 15:04:05"),
+			SBits:      price,
+			Difficulty: difficulty,
+		})
+	}
+
+	return
+}
+
+func RetrieveBlockTicketsPoolValue(db *sql.DB) (items []dbtypes.TicketPoolValueCharts, err error) {
+	rows, err := db.Query(internal.SelectBlocksTicketsPoolValue)
+	if err != nil {
+		return
+	}
+
+	defer func() {
+		if e := rows.Close(); e != nil {
+			log.Errorf("Close of Query failed: %v", e)
+		}
+	}()
+
+	for rows.Next() {
+		var timestamp, price, size uint64
+		err = rows.Scan(&price, &timestamp, &size)
+		if err != nil {
+			return
+		}
+
+		items = append(items, dbtypes.TicketPoolValueCharts{
+			Time:     time.Unix(int64(timestamp), 0).Format("2006/01/02 15:04:05"),
+			SBits:    price,
+			PoolSize: size,
 		})
 	}
 

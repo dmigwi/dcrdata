@@ -311,8 +311,15 @@ type AddressRow struct {
 // TicketPriceChart defines the fields that will be store the
 // x and y values needed to plot the ticket price chart.
 type TicketPriceChart struct {
-	Time  string
-	SBits uint64
+	Time       string
+	SBits      uint64
+	Difficulty float64
+}
+
+type TicketPoolValueCharts struct {
+	Time     string
+	PoolSize uint64
+	SBits    uint64
 }
 
 // ScriptPubKeyData is part of the result of decodescript(ScriptPubKeyHex)

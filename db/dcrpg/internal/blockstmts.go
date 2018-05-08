@@ -99,8 +99,10 @@ const (
 
 	SelectBlockChainRowIDByHash = `select block_db_id from block_chain where this_hash = $1;`
 
-	// SelectBlocksTicketPrice selects the ticket price for the 144th block
-	SelectBlocksTicketPrice = `select sbits, time from blocks where height % 144 = 0 order by time`
+	// SelectBlocksTicketsPrice selects the ticket price and difficulty for the 144th block
+	SelectBlocksTicketsPrice = `select sbits, time, difficulty from blocks where height % 144 = 0 order by time;`
+
+	SelectBlocksTicketsPoolValue = `Select sbits, time, pool_size from blocks order by time;`
 
 	IndexBlocksTableOnHeight = `CREATE INDEX uix_height_index ON blocks(height);`
 

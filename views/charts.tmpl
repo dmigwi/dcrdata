@@ -9,17 +9,34 @@
     <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/dygraph/2.1.0/dygraph.min.css" />
 
     <div class="container">
-    <div id="graphdiv" style="width:100%; height:400px; align-content: center;"></div>
+        <div id="graphdiv" style="width:100%; height:300px; align-content: center;"></div>
+        <br>
+        <div id="graphdiv2" style="width:100%; height:300px; align-content: center;"></div>
+        <br>
+        <div id="graphdiv3" style="width:100%; height:300px; align-content: center;"></div>
+        <br>
+        <div id="graphdiv4" style="width:100%; height:200px; align-content: center;"></div>
+    </div>
 
     {{ template "footer" . }}
 
     <script>
-        var data = {{.Data}}
+        var data = {{.Data}};
+        var data2 = {{.PoolValue}};
         var tickets_price = "";
+        var difficulty_data = "";
+        var pool_size = "";
+        var pool_value = "";
 
         for (i =0; i < data.length; i++) {
             item = data[i]
-            tickets_price = tickets_price.concat(item.Time,", ", item.SBits/100000000,"\n" )
+            tickets_price = tickets_price.concat(item.Time, ", ", item.SBits/100000000,"\n" );
+            difficulty_data = difficulty_data.concat(item.Time, ", ", item.Difficulty,"\n");
+        }
+
+        for (i =0; i < data2.length; i++) {
+            item = data2[i]
+            pool_size_n_value = pool_value.concat(item.Time, ", ", (item.SBits/100000000) * item.PoolSize, ", ", item.PoolSize,"\n" )
         }
 
         new Dygraph(
@@ -31,7 +48,59 @@
                 showRangeSelector: true,
                 ylabel: 'Price (Decred)',
                 legend: 'always',
-                title: 'Decred Ticket Price'
+                title: 'Decred Ticket Price Chart'
+            });
+ 
+        new Dygraph(
+            document.getElementById("graphdiv2"),
+            pool_size_n_value,
+            {   
+                labels: [ "Date", "Pool Value", "Number of Tickets"], 
+                digitsAfterDecimal: 8,
+                showRangeSelector: true,
+                ylabel: 'Pool Value',
+                y2label: 'Number of Tickets',
+                series : {
+                    "Tickets Pool Value (Decred)": {
+                        axis: 'y'
+                    },
+                    "Number of Tickets": {
+                        axis: 'y2'
+                    }
+                 },
+                 axes: {
+                    y: {
+                        labelsKMB: true,
+                        drawGrid: true,
+                        independentTicks: true
+                    },
+                    y2: {
+                        labelsKMB: true,
+                        drawGrid: true,
+                        independentTicks: true
+                    }
+                 },
+                legend: 'always',
+                title: 'Decred Ticket Number vs Ticket Pool Value Chart'
+            });
+        
+        new Dygraph(
+            document.getElementById("graphdiv3"),
+            difficulty_data,
+            {   
+                labels: [ "Date", "Difficulty"], 
+                digitsAfterDecimal: 8,
+                showRangeSelector: true,
+                ylabel: 'Difficulty',
+                legend: 'always',
+                title: 'Decred PoW Difficulty Chart',
+                axes: {
+                    y: {
+                        labelsKMB: true,
+                        drawGrid: true,
+                        independentTicks: true
+                    }
+                },
             });
     </script>
 

@@ -587,7 +587,7 @@ func (exp *explorerUI) DecodeTxPage(w http.ResponseWriter, r *http.Request) {
 	})
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
-		exp.ErrorPage(w, "Something went wrong...", "the data for the requested chart is invalid", false)
+		exp.ErrorPage(w, "Something went wrong...", "and it's not your fault, try refreshing, that usually fixes things", false)
 		return
 	}
 	w.Header().Set("Content-Type", "text/html")
@@ -596,25 +596,35 @@ func (exp *explorerUI) DecodeTxPage(w http.ResponseWriter, r *http.Request) {
 }
 
 func (exp *explorerUI) Charts(w http.ResponseWriter, r *http.Request) {
-	data, err := exp.explorerSource.TicketPriceChartDetails()
+	data, err := exp.explorerSource.TicketsPriceChartDetails()
 	if err != nil {
-		log.Errorf("Invalid ticket price data found: %v", err)
-		exp.ErrorPage(w, "Something went wrong...", "and it's not your fault, try refreshing, that usually fixes things", false)
+		log.Errorf("Invalid tickets price data not found: %v", err)
+		exp.ErrorPage(w, "Something went wrong...", "the data for the requested charts is invalid", false)
+		return
+	}
+
+	data2, err := exp.explorerSource.TicketsPoolValueDetails()
+	if err != nil {
+		log.Errorf("Invalid tickets pool value data not found: %v", err)
+		exp.ErrorPage(w, "Something went wrong...", "the data for the requested charts is invalid", false)
 		return
 	}
 
 	str, err := exp.templates.execTemplateToString("charts", struct {
-		Version string
-		Data    []dbtypes.TicketPriceChart
+		Version   string
+		Data      []dbtypes.TicketPriceChart
+		PoolValue []dbtypes.TicketPoolValueCharts
 	}{
 		exp.Version,
 		data,
+		data2,
 	})
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
 		exp.ErrorPage(w, "Something went wrong...", "and it's not your fault, try refreshing, that usually fixes things", false)
 		return
 	}
+
 	w.Header().Set("Content-Type", "text/html")
 	w.WriteHeader(http.StatusOK)
 	io.WriteString(w, str)
