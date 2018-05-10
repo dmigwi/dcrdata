@@ -5,8 +5,25 @@
 <body>
 
     {{template "navbar"}}
-    <script src="//cdnjs.cloudflare.com/ajax/libs/dygraph/2.1.0/dygraph.min.js"></script>
-    <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/dygraph/2.1.0/dygraph.min.css" />
+
+    <style type="text/css">
+      .dygraph-legend {
+        padding: 4px !important;
+        border: 1px solid #000;
+        border-radius: 5px;
+        pointer-events: none;
+        width: fit-content;
+      }
+      .dygraph-rangesel-bgcanvas {
+        z-index: 0 !important;
+      }
+      .dygraph-rangesel-fgcanvas {
+        z-index: 0 !important;
+      }
+      .dygraph-rangesel-zoomhandle {
+        z-index: 0 !important;
+      }
+    </style>
 
     <div class="container" style="font-size:0.8em;">
         <div id="graphdiv" style="width:900px; height:250px; margin:0 auto;"></div>
@@ -30,9 +47,9 @@
     
 
     <script type="text/javascript">
-        const data = {{.Data}};
-        const data2 = {{.PoolValue}};
-        const txPerDay = {{.TxPerDay}};
+        var data = {{.Data}};
+        var data2 = {{.PoolValue}};
+        var txPerDay = {{.TxPerDay}};
 
         var tickets_price = "";
         var difficulty_data = "";
@@ -176,17 +193,6 @@
                 labelsKMB: true
             });
     </script>
-
-    <style type="text/css">
-      .dygraph-legend {
-        padding: 4px !important;
-        border: 1px solid #000;
-        border-radius: 5px;
-        pointer-events: none;
-        width: fit-content;
-      }
-    </style>
-
 </body>
 </html>
 {{end}}
