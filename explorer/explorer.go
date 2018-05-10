@@ -66,8 +66,10 @@ type explorerDataSource interface {
 	FillAddressTransactions(addrInfo *AddressInfo) error
 	BlockMissedVotes(blockHash string) ([]string, error)
 	AgendaVotes(agendaID string, chartType int) (*dbtypes.AgendaVoteChoices, error)
-	TicketsPriceChartDetails() ([]dbtypes.TicketPriceChart, error)
-	TicketsPoolValueDetails() ([]dbtypes.TicketPoolValueCharts, error)
+	TicketsPriceChartDetails() ([]dbtypes.ChartsData, error)
+	TicketsPoolValueDetails() ([]dbtypes.ChartsData, error)
+	TransactionsPerBlockDetails() ([]dbtypes.ChartsData, error)
+	TransactionsPerDayDetails() ([]dbtypes.ChartsData, error)
 }
 
 // TicketStatusText generates the text to display on the explorer's transaction

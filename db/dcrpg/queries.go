@@ -1350,7 +1350,7 @@ func RetrieveVoutValue(db *sql.DB, txHash string, voutIndex uint32) (value uint6
 // RetrieveTicketsPriceByHeight fetches the ticket price and its timestamp that are used
 // to display the ticket price variation on ticket price chart. This data is fetched at an interval
 // of 144 blocks.
-func RetrieveTicketsPriceByHeight(db *sql.DB) (items []dbtypes.TicketPriceChart, err error) {
+func RetrieveTicketsPriceByHeight(db *sql.DB) (items []dbtypes.ChartsData, err error) {
 	rows, err := db.Query(internal.SelectBlocksTicketsPrice)
 	if err != nil {
 		return
@@ -1370,7 +1370,7 @@ func RetrieveTicketsPriceByHeight(db *sql.DB) (items []dbtypes.TicketPriceChart,
 			return
 		}
 
-		items = append(items, dbtypes.TicketPriceChart{
+		items = append(items, dbtypes.ChartsData{
 			Time:       time.Unix(int64(timestamp), 0).Format("2006/01/02 15:04:05"),
 			SBits:      price,
 			Difficulty: difficulty,
@@ -1380,7 +1380,7 @@ func RetrieveTicketsPriceByHeight(db *sql.DB) (items []dbtypes.TicketPriceChart,
 	return
 }
 
-func RetrieveBlockTicketsPoolValue(db *sql.DB) (items []dbtypes.TicketPoolValueCharts, err error) {
+func RetrieveBlockTicketsPoolValue(db *sql.DB) (items []dbtypes.ChartsData, err error) {
 	rows, err := db.Query(internal.SelectBlocksTicketsPoolValue)
 	if err != nil {
 		return
@@ -1393,16 +1393,74 @@ func RetrieveBlockTicketsPoolValue(db *sql.DB) (items []dbtypes.TicketPoolValueC
 	}()
 
 	for rows.Next() {
-		var timestamp, price, size uint64
-		err = rows.Scan(&price, &timestamp, &size)
+		var timestamp, price, blockSize, poolSize uint64
+		err = rows.Scan(&price, &timestamp, &poolSize, &blockSize)
 		if err != nil {
 			return
 		}
 
-		items = append(items, dbtypes.TicketPoolValueCharts{
-			Time:     time.Unix(int64(timestamp), 0).Format("2006/01/02 15:04:05"),
-			SBits:    price,
-			PoolSize: size,
+		items = append(items, dbtypes.ChartsData{
+			Time:      time.Unix(int64(timestamp), 0).Format("2006/01/02 15:04:05"),
+			SBits:     price,
+			PoolSize:  poolSize,
+			BlockSize: blockSize,
+		})
+	}
+
+	return
+}
+
+func RetrieveTxPerBlock(db *sql.DB) (items []dbtypes.ChartsData, err error) {
+	rows, err := db.Query(internal.SelectTxsPerBlock)
+	if err != nil {
+		return
+	}
+
+	defer func() {
+		if e := rows.Close(); e != nil {
+			log.Errorf("Close of Query failed: %v", e)
+		}
+	}()
+
+	for rows.Next() {
+		var timestamp, count uint64
+		err = rows.Scan(&timestamp, &count)
+		if err != nil {
+			return
+		}
+
+		items = append(items, dbtypes.ChartsData{
+			Time:  time.Unix(int64(timestamp), 0).Format("2006/01/02 15:04:05"),
+			Count: count,
+		})
+	}
+
+	return
+}
+
+func RetrieveTxPerDay(db *sql.DB) (items []dbtypes.ChartsData, err error) {
+	rows, err := db.Query(internal.SelectTxsPerDay)
+	if err != nil {
+		return
+	}
+
+	defer func() {
+		if e := rows.Close(); e != nil {
+			log.Errorf("Close of Query failed: %v", e)
+		}
+	}()
+
+	for rows.Next() {
+		var dateVal string
+		var count uint64
+		err = rows.Scan(&dateVal, &count)
+		if err != nil {
+			return
+		}
+
+		items = append(items, dbtypes.ChartsData{
+			Time:  dateVal,
+			Count: count,
 		})
 	}
 

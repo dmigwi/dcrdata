@@ -610,14 +610,32 @@ func (exp *explorerUI) Charts(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	txPerBlock, err := exp.explorerSource.TransactionsPerBlockDetails()
+	if err != nil {
+		log.Errorf("Invalid transactions per block data not found: %v", err)
+		exp.ErrorPage(w, "Something went wrong...", "the data for the requested charts is invalid", false)
+		return
+	}
+
+	txPerDay, err := exp.explorerSource.TransactionsPerDayDetails()
+	if err != nil {
+		log.Errorf("Invalid transactions per block data not found: %v", err)
+		exp.ErrorPage(w, "Something went wrong...", "the data for the requested charts is invalid", false)
+		return
+	}
+
 	str, err := exp.templates.execTemplateToString("charts", struct {
-		Version   string
-		Data      []dbtypes.TicketPriceChart
-		PoolValue []dbtypes.TicketPoolValueCharts
+		Version    string
+		Data       []dbtypes.ChartsData
+		PoolValue  []dbtypes.ChartsData
+		TxPerBlock []dbtypes.ChartsData
+		TxPerDay   []dbtypes.ChartsData
 	}{
 		exp.Version,
 		data,
 		data2,
+		txPerBlock,
+		txPerDay,
 	})
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)

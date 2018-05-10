@@ -102,7 +102,7 @@ const (
 	// SelectBlocksTicketsPrice selects the ticket price and difficulty for the 144th block
 	SelectBlocksTicketsPrice = `select sbits, time, difficulty from blocks where height % 144 = 0 order by time;`
 
-	SelectBlocksTicketsPoolValue = `Select sbits, time, pool_size from blocks order by time;`
+	SelectBlocksTicketsPoolValue = `Select sbits, time, pool_size, size from blocks order by time;`
 
 	IndexBlocksTableOnHeight = `CREATE INDEX uix_height_index ON blocks(height);`
 

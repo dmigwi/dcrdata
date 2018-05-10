@@ -308,18 +308,15 @@ type AddressRow struct {
 	VinVoutDbID    uint64
 }
 
-// TicketPriceChart defines the fields that will be store the
-// x and y values needed to plot the ticket price chart.
-type TicketPriceChart struct {
+// ChartsData defines the fields that will be store the
+// x , y and y2 values needed to plot the charts on the frontend.
+type ChartsData struct {
 	Time       string
 	SBits      uint64
 	Difficulty float64
-}
-
-type TicketPoolValueCharts struct {
-	Time     string
-	PoolSize uint64
-	SBits    uint64
+	BlockSize  uint64
+	PoolSize   uint64
+	Count      uint64
 }
 
 // ScriptPubKeyData is part of the result of decodescript(ScriptPubKeyHex)

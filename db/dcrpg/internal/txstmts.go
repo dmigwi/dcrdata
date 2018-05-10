@@ -66,6 +66,10 @@ const (
 
 	SelectTxIDHeightByHash = `SELECT id, block_height FROM transactions WHERE tx_hash = $1;`
 
+	SelectTxsPerBlock = `SELECT time, count(block_hash) FROM transactions GROUP BY block_hash, time ORDER BY time;`
+
+	SelectTxsPerDay = `SELECT to_timestamp(time)::date as date, count(*) FROM transactions GROUP BY date ORDER BY date;`
+
 	SelectFullTxByHash = `SELECT id, block_hash, block_height, block_time, 
 		time, tx_type, version, tree, tx_hash, block_index, lock_time, expiry, 
 		size, spent, sent, fees, num_vin, vin_db_ids, num_vout, vout_db_ids 

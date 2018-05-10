@@ -825,12 +825,20 @@ func (pgb *ChainDB) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgBloc
 	return err
 }
 
-func (pgb *ChainDB) TicketsPriceChartDetails() ([]dbtypes.TicketPriceChart, error) {
+func (pgb *ChainDB) TicketsPriceChartDetails() ([]dbtypes.ChartsData, error) {
 	return RetrieveTicketsPriceByHeight(pgb.db)
 }
 
-func (pgb *ChainDB) TicketsPoolValueDetails() ([]dbtypes.TicketPoolValueCharts, error) {
+func (pgb *ChainDB) TicketsPoolValueDetails() ([]dbtypes.ChartsData, error) {
 	return RetrieveBlockTicketsPoolValue(pgb.db)
+}
+
+func (pgb *ChainDB) TransactionsPerBlockDetails() ([]dbtypes.ChartsData, error) {
+	return RetrieveTxPerBlock(pgb.db)
+}
+
+func (pgb *ChainDB) TransactionsPerDayDetails() ([]dbtypes.ChartsData, error) {
+	return RetrieveTxPerDay(pgb.db)
 }
 
 func (pgb *ChainDB) DeleteDuplicates() error {
