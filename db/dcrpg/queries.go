@@ -1393,8 +1393,8 @@ func RetrieveBlockTicketsPoolValue(db *sql.DB) (items []dbtypes.ChartsData, err 
 	}()
 
 	for rows.Next() {
-		var timestamp, price, blockSize, poolSize uint64
-		err = rows.Scan(&price, &timestamp, &poolSize, &blockSize)
+		var timestamp, price, blockSize, poolSize, blocksCount uint64
+		err = rows.Scan(&price, &timestamp, &poolSize, &blockSize, &blocksCount)
 		if err != nil {
 			return
 		}
@@ -1404,34 +1404,7 @@ func RetrieveBlockTicketsPoolValue(db *sql.DB) (items []dbtypes.ChartsData, err 
 			SBits:     price,
 			PoolSize:  poolSize,
 			BlockSize: blockSize,
-		})
-	}
-
-	return
-}
-
-func RetrieveTxPerBlock(db *sql.DB) (items []dbtypes.ChartsData, err error) {
-	rows, err := db.Query(internal.SelectTxsPerBlock)
-	if err != nil {
-		return
-	}
-
-	defer func() {
-		if e := rows.Close(); e != nil {
-			log.Errorf("Close of Query failed: %v", e)
-		}
-	}()
-
-	for rows.Next() {
-		var timestamp, count uint64
-		err = rows.Scan(&timestamp, &count)
-		if err != nil {
-			return
-		}
-
-		items = append(items, dbtypes.ChartsData{
-			Time:  time.Unix(int64(timestamp), 0).Format("2006/01/02 15:04:05"),
-			Count: count,
+			Count:     blocksCount,
 		})
 	}
 

@@ -833,10 +833,6 @@ func (pgb *ChainDB) TicketsPoolValueDetails() ([]dbtypes.ChartsData, error) {
 	return RetrieveBlockTicketsPoolValue(pgb.db)
 }
 
-func (pgb *ChainDB) TransactionsPerBlockDetails() ([]dbtypes.ChartsData, error) {
-	return RetrieveTxPerBlock(pgb.db)
-}
-
 func (pgb *ChainDB) TransactionsPerDayDetails() ([]dbtypes.ChartsData, error) {
 	return RetrieveTxPerDay(pgb.db)
 }

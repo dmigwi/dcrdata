@@ -68,7 +68,6 @@ type explorerDataSource interface {
 	AgendaVotes(agendaID string, chartType int) (*dbtypes.AgendaVoteChoices, error)
 	TicketsPriceChartDetails() ([]dbtypes.ChartsData, error)
 	TicketsPoolValueDetails() ([]dbtypes.ChartsData, error)
-	TransactionsPerBlockDetails() ([]dbtypes.ChartsData, error)
 	TransactionsPerDayDetails() ([]dbtypes.ChartsData, error)
 }
 
