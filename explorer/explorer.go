@@ -53,6 +53,7 @@ type explorerDataSourceLite interface {
 	GetMempool() []MempoolTx
 	TxHeight(txid string) (height int64)
 	BlockSubsidy(height int64, voters uint16) *dcrjson.GetBlockSubsidyResult
+	GetAllPoolValsAndSizesDetails() ([]dbtypes.ChartsData, error)
 }
 
 // explorerDataSource implements extra data retrieval functions that require a
@@ -67,7 +68,7 @@ type explorerDataSource interface {
 	BlockMissedVotes(blockHash string) ([]string, error)
 	AgendaVotes(agendaID string, chartType int) (*dbtypes.AgendaVoteChoices, error)
 	TicketsPriceChartDetails() ([]dbtypes.ChartsData, error)
-	TicketsPoolValueDetails() ([]dbtypes.ChartsData, error)
+	BlockSizeAndTxPerBlockDetails() ([]dbtypes.ChartsData, error)
 	TransactionsPerDayDetails() ([]dbtypes.ChartsData, error)
 }
 

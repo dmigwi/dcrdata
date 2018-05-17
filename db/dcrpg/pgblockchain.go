@@ -829,7 +829,7 @@ func (pgb *ChainDB) TicketsPriceChartDetails() ([]dbtypes.ChartsData, error) {
 	return RetrieveTicketsPriceByHeight(pgb.db)
 }
 
-func (pgb *ChainDB) TicketsPoolValueDetails() ([]dbtypes.ChartsData, error) {
+func (pgb *ChainDB) BlockSizeAndTxPerBlockDetails() ([]dbtypes.ChartsData, error) {
 	return RetrieveBlockTicketsPoolValue(pgb.db)
 }
 

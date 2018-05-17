@@ -311,12 +311,14 @@ type AddressRow struct {
 // ChartsData defines the fields that will be store the
 // x , y and y2 values needed to plot the charts on the frontend.
 type ChartsData struct {
-	Time       string
-	SBits      uint64
-	Difficulty float64
-	BlockSize  uint64
-	PoolSize   uint64
-	Count      uint64
+	Time           string
+	SBits          uint64
+	Difficulty     float64
+	BlockSize      uint64
+	PoolSize       uint64
+	Count          uint64
+	PoolSizeFloat  float64
+	PoolValueFloat float64
 }
 
 // ScriptPubKeyData is part of the result of decodescript(ScriptPubKeyHex)

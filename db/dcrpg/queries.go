@@ -1381,7 +1381,7 @@ func RetrieveTicketsPriceByHeight(db *sql.DB) (items []dbtypes.ChartsData, err e
 }
 
 func RetrieveBlockTicketsPoolValue(db *sql.DB) (items []dbtypes.ChartsData, err error) {
-	rows, err := db.Query(internal.SelectBlocksTicketsPoolValue)
+	rows, err := db.Query(internal.SelectBlocksBlockSize)
 	if err != nil {
 		return
 	}
@@ -1393,16 +1393,14 @@ func RetrieveBlockTicketsPoolValue(db *sql.DB) (items []dbtypes.ChartsData, err 
 	}()
 
 	for rows.Next() {
-		var timestamp, price, blockSize, poolSize, blocksCount uint64
-		err = rows.Scan(&price, &timestamp, &poolSize, &blockSize, &blocksCount)
+		var timestamp, blockSize, blocksCount uint64
+		err = rows.Scan(&timestamp, &blockSize, &blocksCount)
 		if err != nil {
 			return
 		}
 
 		items = append(items, dbtypes.ChartsData{
 			Time:      time.Unix(int64(timestamp), 0).Format("2006/01/02 15:04:05"),
-			SBits:     price,
-			PoolSize:  poolSize,
 			BlockSize: blockSize,
 			Count:     blocksCount,
 		})

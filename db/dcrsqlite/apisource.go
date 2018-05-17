@@ -744,6 +744,12 @@ func (db *wiredDB) GetPoolValAndSizeRange(idx0, idx1 int) ([]float64, []float64)
 	return poolvals, poolsizes
 }
 
+func (db *wiredDB) GetAllPoolValsAndSizesDetails() (chartData []dbtypes.ChartsData, err error) {
+	chartData, err = db.RetrieveAllPoolValAndSize()
+
+	return
+}
+
 func (db *wiredDB) GetSDiff(idx int) float64 {
 	sdiff, err := db.RetrieveSDiff(int64(idx))
 	if err != nil {

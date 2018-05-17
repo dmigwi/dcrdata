@@ -603,7 +603,14 @@ func (exp *explorerUI) Charts(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	data2, err := exp.explorerSource.TicketsPoolValueDetails()
+	data2, err := exp.explorerSource.BlockSizeAndTxPerBlockDetails()
+	if err != nil {
+		log.Errorf("Invalid block size and tx per blockdata data not found: %v", err)
+		exp.ErrorPage(w, "Something went wrong...", "the data for the requested charts is invalid", false)
+		return
+	}
+
+	data3, err := exp.blockData.GetAllPoolValsAndSizesDetails()
 	if err != nil {
 		log.Errorf("Invalid tickets pool value data not found: %v", err)
 		exp.ErrorPage(w, "Something went wrong...", "the data for the requested charts is invalid", false)
@@ -618,14 +625,16 @@ func (exp *explorerUI) Charts(w http.ResponseWriter, r *http.Request) {
 	}
 
 	str, err := exp.templates.execTemplateToString("charts", struct {
-		Version   string
-		Data      []dbtypes.ChartsData
-		PoolValue []dbtypes.ChartsData
-		TxPerDay  []dbtypes.ChartsData
+		Version      string
+		Data         []dbtypes.ChartsData
+		PoolValue    []dbtypes.ChartsData
+		NewPoolValue []dbtypes.ChartsData
+		TxPerDay     []dbtypes.ChartsData
 	}{
 		exp.Version,
 		data,
 		data2,
+		data3,
 		txPerDay,
 	})
 	if err != nil {
