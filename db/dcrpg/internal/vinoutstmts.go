@@ -16,14 +16,15 @@ const (
 		tx_hash TEXT,
 		tx_index INT4,
 		tx_tree INT2,
+		is_valid BOOLEAN,
 		prev_tx_hash TEXT,
 		prev_tx_index INT8,
 		prev_tx_tree INT2,
 		value_in INT8
 	);`
 
-	InsertVinRow0 = `INSERT INTO vins (tx_hash, tx_index, tx_tree, prev_tx_hash, prev_tx_index, prev_tx_tree, value_in)
-		VALUES ($1, $2, $3, $4, $5, $6, $7) `
+	InsertVinRow0 = `INSERT INTO vins (tx_hash, tx_index, tx_tree, prev_tx_hash, prev_tx_index, prev_tx_tree, value_in, is_valid)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8) `
 	InsertVinRow = InsertVinRow0 + `RETURNING id;`
 	// InsertVinRowChecked = InsertVinRow0 +
 	// 	`ON CONFLICT (tx_hash, tx_index, tx_tree) DO NOTHING RETURNING id;`
@@ -69,8 +70,6 @@ const (
 		value_in DOUBLE PRECISION,
 		script_hex BYTEA
 	);`
-
-	SelectCoinSupply = `WITH prevs AS (SELECT t.block_height, t.spent, a.tx_hash, a.prev_tx_index FROM vins a, transactions t WHERE t.tx_type = 2 AND t.tx_hash = a.tx_hash AND a.prev_tx_hash = '0000000000000000000000000000000000000000000000000000000000000000') SELECT sum(p.value - b.value) FROM vouts b, prevs p WHERE p.prev_tx_hash = b.tx_hash AND p.prev_tx_index = b.tx_index;`
 
 	// vouts
 

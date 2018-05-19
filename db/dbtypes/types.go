@@ -342,6 +342,7 @@ type VinTxProperty struct {
 	BlockHeight uint32 `json:"blockheight"`
 	BlockIndex  uint32 `json:"blockindex"`
 	ScriptHex   []byte `json:"scripthex"`
+	IsValid     bool   `json:"is_valid"`
 }
 
 // Vin models a transaction input.

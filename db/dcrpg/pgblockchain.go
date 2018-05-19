@@ -1213,6 +1213,45 @@ func (pgb *ChainDB) StoreBlock(msgBlock *wire.MsgBlock, winningTickets []string,
 		Validators:     winners,
 	}
 
+	// Store the block now that it has all it's transaction PK IDs
+	var blockDbID uint64
+	blockDbID, err = InsertBlock(pgb.db, dbBlock, isValid, pgb.dupChecks)
+	if err != nil {
+		log.Error("InsertBlock:", err)
+		return
+	}
+	pgb.lastBlock[msgBlock.BlockHash()] = blockDbID
+
+	pgb.bestBlock = int64(dbBlock.Height)
+
+	err = InsertBlockPrevNext(pgb.db, blockDbID, dbBlock.Hash,
+		dbBlock.PreviousHash, "")
+	if err != nil && err != sql.ErrNoRows {
+		log.Error("InsertBlockPrevNext:", err)
+		return
+	}
+
+	// Update last block in db with this block's hash as it's next. Also update
+	// isValid flag in last block if votes in this block invalidated it.
+	lastBlockHash := msgBlock.Header.PrevBlock
+	lastBlockDbID, ok := pgb.lastBlock[lastBlockHash]
+	if ok {
+		isValid = dbBlock.VoteBits&1 != 0
+		if !isValid {
+			log.Infof("Setting last block %s as INVALID", lastBlockHash)
+			err = UpdateLastBlock(pgb.db, lastBlockDbID, isValid)
+			if err != nil {
+				log.Error("UpdateLastBlock:", err)
+				return
+			}
+		}
+		err = UpdateBlockNext(pgb.db, lastBlockDbID, dbBlock.Hash)
+		if err != nil {
+			log.Error("UpdateBlockNext:", err)
+			return
+		}
+	}
+
 	// Extract transactions and their vouts, and insert vouts into their pg table,
 	// returning their DB PKs, which are stored in the corresponding transaction
 	// data struct. Insert each transaction once they are updated with their
@@ -1223,7 +1262,7 @@ func (pgb *ChainDB) StoreBlock(msgBlock *wire.MsgBlock, winningTickets []string,
 	resChanReg := make(chan storeTxnsResult)
 	go func() {
 		resChanReg <- pgb.storeTxns(MsgBlockPG, wire.TxTreeRegular,
-			pgb.chainParams, &dbBlock.TxDbIDs, updateAddressesSpendingInfo,
+			pgb.chainParams, &dbBlock.TxDbIDs, isValid, updateAddressesSpendingInfo,
 			updateTicketsSpendingInfo)
 	}()
 
@@ -1231,7 +1270,7 @@ func (pgb *ChainDB) StoreBlock(msgBlock *wire.MsgBlock, winningTickets []string,
 	resChanStake := make(chan storeTxnsResult)
 	go func() {
 		resChanStake <- pgb.storeTxns(MsgBlockPG, wire.TxTreeStake,
-			pgb.chainParams, &dbBlock.STxDbIDs, updateAddressesSpendingInfo,
+			pgb.chainParams, &dbBlock.STxDbIDs, isValid, updateAddressesSpendingInfo,
 			updateTicketsSpendingInfo)
 	}()
 
@@ -1351,12 +1390,12 @@ type MsgBlockPG struct {
 
 // storeTxns stores the transactions of a given block
 func (pgb *ChainDB) storeTxns(msgBlock *MsgBlockPG, txTree int8,
-	chainParams *chaincfg.Params, TxDbIDs *[]uint64,
+	chainParams *chaincfg.Params, TxDbIDs *[]uint64, isTxValid bool,
 	updateAddressesSpendingInfo, updateTicketsSpendingInfo bool) storeTxnsResult {
 	// For the given block, transaction tree, and network, extract the
 	// transactions, vins, and vouts.
 	dbTransactions, dbTxVouts, dbTxVins := dbtypes.ExtractBlockTransactions(
-		msgBlock.MsgBlock, txTree, chainParams)
+		msgBlock.MsgBlock, txTree, chainParams, isTxValid)
 
 	// The return value, containing counts of inserted vins/vouts/txns, and an
 	// error value.

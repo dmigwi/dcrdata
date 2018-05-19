@@ -402,9 +402,10 @@ func SetSpendingForVinDbIDs(db *sql.DB, vinDbIDs []uint64) ([]int64, int64, erro
 		var prevOutVoutInd, txVinInd uint32
 		var prevOutTree, txTree int8
 		var valueIn int64
+		var isValid bool
 		var id uint64
 		err = vinGetStmt.QueryRow(vinDbID).Scan(&id,
-			&txHash, &txVinInd, &txTree,
+			&txHash, &txVinInd, &txTree, &isValid,
 			&prevOutHash, &prevOutVoutInd, &prevOutTree, &valueIn)
 		if err != nil {
 			return addressRowsUpdated, 0, fmt.Errorf(`SelectAllVinInfoByID: `+
@@ -444,10 +445,11 @@ func SetSpendingForVinDbID(db *sql.DB, vinDbID uint64) (int64, error) {
 	var prevOutHash, txHash string
 	var prevOutVoutInd, txVinInd uint32
 	var prevOutTree, txTree int8
+	var isValid bool
 	var valueIn int64
 	var id uint64
 	err = dbtx.QueryRow(internal.SelectAllVinInfoByID, vinDbID).
-		Scan(&id, &txHash, &txVinInd, &txTree,
+		Scan(&id, &txHash, &txVinInd, &txTree, &isValid,
 			&prevOutHash, &prevOutVoutInd, &prevOutTree, &valueIn)
 	if err != nil {
 		return 0, fmt.Errorf(`SetSpendingByVinID: %v + %v `+
@@ -926,10 +928,10 @@ func RetrieveFundingOutpointByVinID(db *sql.DB, vinDbID uint64) (tx string, inde
 }
 
 func RetrieveVinByID(db *sql.DB, vinDbID uint64) (prevOutHash string, prevOutVoutInd uint32,
-	prevOutTree int8, txHash string, txVinInd uint32, txTree int8, valueIn int64, err error) {
+	prevOutTree int8, txHash string, txVinInd uint32, txTree int8, valueIn int64, isValid bool, err error) {
 	var id uint64
 	err = db.QueryRow(internal.SelectAllVinInfoByID, vinDbID).
-		Scan(&id, &txHash, &txVinInd, &txTree,
+		Scan(&id, &txHash, &txVinInd, &txTree, &isValid,
 			&prevOutHash, &prevOutVoutInd, &prevOutTree, &valueIn)
 	return
 }
@@ -1496,7 +1498,7 @@ func UpdateBlockNext(db *sql.DB, blockDbID uint64, next string) error {
 func InsertVin(db *sql.DB, dbVin dbtypes.VinTxProperty, checked bool) (id uint64, err error) {
 	err = db.QueryRow(internal.MakeVinInsertStatement(checked),
 		dbVin.TxID, dbVin.TxIndex, dbVin.TxTree,
-		dbVin.PrevTxHash, dbVin.PrevTxIndex, dbVin.PrevTxTree, dbVin.ValueIn).Scan(&id)
+		dbVin.PrevTxHash, dbVin.PrevTxIndex, dbVin.PrevTxTree, dbVin.ValueIn, dbVin.IsValid).Scan(&id)
 	return
 }
 
@@ -1519,7 +1521,7 @@ func InsertVins(db *sql.DB, dbVins dbtypes.VinTxPropertyARRAY, checked bool) ([]
 	for _, vin := range dbVins {
 		var id uint64
 		err = stmt.QueryRow(vin.TxID, vin.TxIndex, vin.TxTree,
-			vin.PrevTxHash, vin.PrevTxIndex, vin.PrevTxTree, vin.ValueIn).Scan(&id)
+			vin.PrevTxHash, vin.PrevTxIndex, vin.PrevTxTree, vin.ValueIn, vin.IsValid).Scan(&id)
 		if err != nil {
 			_ = stmt.Close() // try, but we want the QueryRow error back
 			if errRoll := dbtx.Rollback(); errRoll != nil {
