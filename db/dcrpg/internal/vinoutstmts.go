@@ -61,6 +61,7 @@ const (
 	SelectFundingTxByVinID       = `SELECT prev_tx_hash FROM vins WHERE id=$1;`
 	SelectSpendingTxByVinID      = `SELECT tx_hash, tx_index, tx_tree FROM vins WHERE id=$1;`
 	SelectAllVinInfoByID         = `SELECT * FROM vins WHERE id=$1;`
+	SetIsValidByTxHash           = `UPDATE vins SET is_valid = $1 WHERE tx_hash = $2;`
 
 	CreateVinType = `CREATE TYPE vin_t AS (
 		prev_tx_hash TEXT,

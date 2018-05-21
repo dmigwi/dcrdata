@@ -1341,6 +1341,33 @@ func UpdateLastBlock(db *sql.DB, blockDbID uint64, isValid bool) error {
 	return nil
 }
 
+// UpdateLastVins updates the is_valid column of the block specified by the row
+// id for the blocks table.
+func UpdateLastVins(db *sql.DB, blockHash string, isValid bool) error {
+	_, txs, _, _, err := RetrieveTxsByBlockHash(db, blockHash)
+	if err != nil {
+		return err
+	}
+
+	var numRows = 0
+	for _, txHash := range txs {
+		n, err := sqlExec(db, internal.SetIsValidByTxHash,
+			"failed to update last vins tx validity: ", isValid, txHash)
+		if err != nil {
+			return err
+		}
+
+		numRows += int(n)
+	}
+	// Rows updated can be more than the total number of txs fetched because
+	// stakebase and coinbase txs are both updated on vins.
+	if numRows < len(txs) {
+		return fmt.Errorf(" failed to update at least %d row(s)", len(txs))
+	}
+
+	return nil
+}
+
 func RetrieveBestBlockHeight(db *sql.DB) (height uint64, hash string, id uint64, err error) {
 	err = db.QueryRow(internal.RetrieveBestBlockHeight).Scan(&id, &hash, &height)
 	return
