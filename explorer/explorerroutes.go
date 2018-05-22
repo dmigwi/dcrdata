@@ -31,6 +31,8 @@ func netName(chainParams *chaincfg.Params) string {
 		return strings.Title(chainParams.Name)
 	}
 }
+// CacheChartsData holds the prepopulate data that is used to draw the charts
+var CacheChartsData = make([][]dbtypes.ChartsData, 0)
 
 // Home is the page handler for the "/" path
 func (exp *explorerUI) Home(w http.ResponseWriter, r *http.Request) {
@@ -595,47 +597,20 @@ func (exp *explorerUI) DecodeTxPage(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, str)
 }
 
+// Charts handles the charts displays showing the various charts plotted.
 func (exp *explorerUI) Charts(w http.ResponseWriter, r *http.Request) {
-	data, err := exp.explorerSource.TicketsPriceChartDetails()
-	if err != nil {
-		log.Errorf("Invalid tickets price data not found: %v", err)
-		exp.ErrorPage(w, "Something went wrong...", "the data for the requested charts is invalid", false)
-		return
-	}
-
-	data2, err := exp.explorerSource.BlockSizeAndTxPerBlockDetails()
-	if err != nil {
-		log.Errorf("Invalid block size and tx per blockdata data not found: %v", err)
-		exp.ErrorPage(w, "Something went wrong...", "the data for the requested charts is invalid", false)
-		return
-	}
-
-	data3, err := exp.blockData.GetAllPoolValsAndSizesDetails()
-	if err != nil {
-		log.Errorf("Invalid tickets pool value data not found: %v", err)
-		exp.ErrorPage(w, "Something went wrong...", "the data for the requested charts is invalid", false)
-		return
-	}
-
-	txPerDay, err := exp.explorerSource.TransactionsPerDayDetails()
-	if err != nil {
-		log.Errorf("Invalid transactions per block data not found: %v", err)
-		exp.ErrorPage(w, "Something went wrong...", "the data for the requested charts is invalid", false)
+	if len(CacheChartsData) == 0 {
+		log.Errorf("Charts data missing : Queries are taking too long to run")
+		exp.ErrorPage(w, "Something went wrong...", "and it's not your fault, try refreshing, that usually fixes things", false)
 		return
 	}
 
 	str, err := exp.templates.execTemplateToString("charts", struct {
-		Version      string
-		Data         []dbtypes.ChartsData
-		PoolValue    []dbtypes.ChartsData
-		NewPoolValue []dbtypes.ChartsData
-		TxPerDay     []dbtypes.ChartsData
+		Version string
+		Data    [][]dbtypes.ChartsData
 	}{
 		exp.Version,
-		data,
-		data2,
-		data3,
-		txPerDay,
+		CacheChartsData,
 	})
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)

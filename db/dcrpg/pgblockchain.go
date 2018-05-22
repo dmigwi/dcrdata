@@ -825,16 +825,31 @@ func (pgb *ChainDB) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgBloc
 	return err
 }
 
-func (pgb *ChainDB) TicketsPriceChartDetails() ([]dbtypes.ChartsData, error) {
-	return RetrieveTicketsPriceByHeight(pgb.db)
-}
+// PgChartsData fetches the charts data that is stored in pg
+func (pgb *ChainDB) PgChartsData() ([][]dbtypes.ChartsData, error) {
+	var val = [][]dbtypes.ChartsData{}
 
-func (pgb *ChainDB) BlockSizeAndTxPerBlockDetails() ([]dbtypes.ChartsData, error) {
-	return RetrieveBlockTicketsPoolValue(pgb.db)
-}
+	tickets, err := RetrieveTicketsPriceByHeight(pgb.db)
+	if err != nil {
+		return val, fmt.Errorf("RetrieveTicketsPriceByHeight: %v", err)
+	}
 
-func (pgb *ChainDB) TransactionsPerDayDetails() ([]dbtypes.ChartsData, error) {
-	return RetrieveTxPerDay(pgb.db)
+	supply, err := RetrieveCoinSupply(pgb.db)
+	if err != nil {
+		return val, fmt.Errorf("RetrieveCoinSupply: %v", err)
+	}
+
+	size, err := RetrieveBlockTicketsPoolValue(pgb.db)
+	if err != nil {
+		return val, fmt.Errorf("RetrieveBlockTicketsPoolValue: %v", err)
+	}
+
+	txRate, err := RetrieveTxPerDay(pgb.db)
+	if err != nil {
+		return val, fmt.Errorf("RetrieveTxPerDay: %v", err)
+	}
+
+	return [][]dbtypes.ChartsData{tickets, supply, size, txRate}, nil
 }
 
 func (pgb *ChainDB) DeleteDuplicates() error {

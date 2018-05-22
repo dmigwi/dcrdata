@@ -1378,6 +1378,13 @@ func RetrieveVoutValue(db *sql.DB, txHash string, voutIndex uint32) (value uint6
 	return
 }
 
+// closeRows initiated closing of the Rows after reading all the data
+func closeRows(rows *sql.Rows) {
+	if e := rows.Close(); e != nil {
+		log.Errorf("Close of Query failed: %v", e)
+	}
+}
+
 // RetrieveTicketsPriceByHeight fetches the ticket price and its timestamp that are used
 // to display the ticket price variation on ticket price chart. This data is fetched at an interval
 // of 144 blocks.
@@ -1387,11 +1394,7 @@ func RetrieveTicketsPriceByHeight(db *sql.DB) (items []dbtypes.ChartsData, err e
 		return
 	}
 
-	defer func() {
-		if e := rows.Close(); e != nil {
-			log.Errorf("Close of Query failed: %v", e)
-		}
-	}()
+	defer closeRows(rows)
 
 	for rows.Next() {
 		var timestamp, price uint64
@@ -1402,9 +1405,40 @@ func RetrieveTicketsPriceByHeight(db *sql.DB) (items []dbtypes.ChartsData, err e
 		}
 
 		items = append(items, dbtypes.ChartsData{
-			Time:       time.Unix(int64(timestamp), 0).Format("2006/01/02 15:04:05"),
-			SBits:      price,
-			Difficulty: difficulty,
+			Time:      time.Unix(int64(timestamp), 0).Format("2006/01/02 15:04:05"),
+			Value:     price,
+			SizeFloat: difficulty,
+		})
+	}
+
+	return
+}
+
+// RetrieveCoinSupply fetches the coin supply data
+func RetrieveCoinSupply(db *sql.DB) (items []dbtypes.ChartsData, err error) {
+	rows, err := db.Query(internal.SelectCoinSupply)
+	if err != nil {
+		return
+	}
+
+	defer closeRows(rows)
+
+	for rows.Next() {
+		var timestamp, height uint64
+		var value int64
+		err = rows.Scan(&height, &timestamp, &value)
+		if err != nil {
+			return
+		}
+
+		if value < 0 {
+			value = 0
+		}
+
+		items = append(items, dbtypes.ChartsData{
+			Time:  time.Unix(int64(timestamp), 0).Format("2006/01/02 15:04:05"),
+			Value: uint64(value),
+			Count: height,
 		})
 	}
 
@@ -1417,11 +1451,7 @@ func RetrieveBlockTicketsPoolValue(db *sql.DB) (items []dbtypes.ChartsData, err 
 		return
 	}
 
-	defer func() {
-		if e := rows.Close(); e != nil {
-			log.Errorf("Close of Query failed: %v", e)
-		}
-	}()
+	defer closeRows(rows)
 
 	for rows.Next() {
 		var timestamp, blockSize, blocksCount uint64
@@ -1431,9 +1461,9 @@ func RetrieveBlockTicketsPoolValue(db *sql.DB) (items []dbtypes.ChartsData, err 
 		}
 
 		items = append(items, dbtypes.ChartsData{
-			Time:      time.Unix(int64(timestamp), 0).Format("2006/01/02 15:04:05"),
-			BlockSize: blockSize,
-			Count:     blocksCount,
+			Time:  time.Unix(int64(timestamp), 0).Format("2006/01/02 15:04:05"),
+			Size:  blockSize,
+			Count: blocksCount,
 		})
 	}
 
@@ -1446,11 +1476,7 @@ func RetrieveTxPerDay(db *sql.DB) (items []dbtypes.ChartsData, err error) {
 		return
 	}
 
-	defer func() {
-		if e := rows.Close(); e != nil {
-			log.Errorf("Close of Query failed: %v", e)
-		}
-	}()
+	defer closeRows(rows)
 
 	for rows.Next() {
 		var dateVal string
@@ -1475,11 +1501,8 @@ func RetrieveVoutValues(db *sql.DB, txHash string) (values []uint64, txInds []ui
 	if err != nil {
 		return
 	}
-	defer func() {
-		if e := rows.Close(); e != nil {
-			log.Errorf("Close of Query failed: %v", e)
-		}
-	}()
+
+	defer closeRows(rows)
 
 	for rows.Next() {
 		var v uint64

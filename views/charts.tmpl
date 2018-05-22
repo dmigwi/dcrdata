@@ -41,16 +41,20 @@
         <div id="graphdiv6" style="width:900px; height:250px; margin:0 auto;"></div>
         <br>
         <div id="graphdiv7" style="width:900px; height:250px; margin:0 auto;"></div>
+        <br>
+        <div id="graphdiv8" style="width:900px; height:250px; margin:0 auto;"></div>
     </div>
 
     {{ template "footer" . }}
     
 
     <script type="text/javascript">
-        var data3 = {{.NewPoolValue}};
         var data = {{.Data}};
-        var data2 = {{.PoolValue}};
-        var txPerDay = {{.TxPerDay}};
+        var ticketsPrice = data[0]  // TicketsPriceByHeight
+        var coinSupply = data[1]    // CoinSupply
+        var ticketsPool = data[2];  // BlockTicketsPoolValue
+        var txPerDay = data[3];     // TxPerDay
+        var poolInfo = data[4];     // PoolValueAndSize
 
         var tickets_price = "";
         var difficulty_data = "";
@@ -60,31 +64,39 @@
         var block_size = "";
         var tx_per_block = "";
         var tx_per_day = "";
+        var coin_supply = "";
 
-        for (i =0; i < data.length; i++) {
-            item = data[i]
-            tickets_price = tickets_price.concat(item.Time, ", ", item.SBits/100000000, "\n" );
-            difficulty_data = difficulty_data.concat(item.Time, ", ", item.Difficulty, "\n");
+        for (i =0; i < ticketsPrice.length; i++) {
+            item = ticketsPrice[i]
+            tickets_price = tickets_price.concat(item.Time, ", ", item.Value/100000000, "\n");
+            difficulty_data = difficulty_data.concat(item.Time, ", ", item.SizeFloat, "\n");
+        }
+
+        var supply = 0;
+         for (i=0; i < coinSupply.length; i++) {
+            item = coinSupply[i]
+            supply = supply + (item.Value/100000000)
+            coin_supply = coin_supply.concat(item.Time, ", ", supply, "\n");
         }
 
         var size = 0;
-        for (i =0; i < data2.length; i++) {
-            item = data2[i]
-            block_size = block_size.concat(item.Time, ", ", item.BlockSize, "\n" )
-            size = size + item.BlockSize
-            blockchain_size = blockchain_size.concat(item.Time, ", ", size,"\n" )
-            tx_per_block = tx_per_block.concat(item.Time, ", ", item.Count,"\n" )
-        }
-
-        for (i=0; i <data3.length; i ++) {
-            item = data3[i]
-            pool_size = pool_size.concat(item.Time, ", ", item.PoolSizeFloat, "\n" )
-            pool_value = pool_value.concat(item.Time, ", ", item.PoolValueFloat, "\n" )
+        for (i =0; i < ticketsPool.length; i++) {
+            item = ticketsPool[i]
+            block_size = block_size.concat(item.Time, ", ", item.Size, "\n" );
+            size = size + item.Size
+            blockchain_size = blockchain_size.concat(item.Time, ", ", size,"\n" );
+            tx_per_block = tx_per_block.concat(item.Time, ", ", item.Count,"\n" );
         }
 
         for (i = 0; i < txPerDay.length; i++){
             item = txPerDay[i]
-            tx_per_day = tx_per_day.concat(item.Time, ", ", item.Count,"\n" )
+            tx_per_day = tx_per_day.concat(item.Time, ", ", item.Count,"\n" );
+        }
+
+        for (i=0; i <poolInfo.length; i ++) {
+            item = poolInfo[i]
+            pool_size = pool_size.concat(item.Time, ", ", item.SizeFloat, "\n" );
+            pool_value = pool_value.concat(item.Time, ", ", item.PoolValue, "\n" );
         }
 
         new Dygraph(
@@ -202,6 +214,21 @@
                 showRangeSelector: true,
                 ylabel: 'Difficulty',
                 title: 'PoW Difficulty Chart',
+                labelsSeparateLines: true,
+                labelsKMB: true
+            });
+
+        new Dygraph(
+            document.getElementById("graphdiv8"),
+            coin_supply,
+            {
+                labels: ["Date", "Coin Supply"],
+                digitsAfterDecimal: 8,
+                drawPoints: true,
+                legend: "follow",
+                showRangeSelector: true,
+                ylabel: 'Coin Supply',
+                title: 'Total Coin Supply Chart',
                 labelsSeparateLines: true,
                 labelsKMB: true
             });

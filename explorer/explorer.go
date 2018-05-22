@@ -67,9 +67,7 @@ type explorerDataSource interface {
 	FillAddressTransactions(addrInfo *AddressInfo) error
 	BlockMissedVotes(blockHash string) ([]string, error)
 	AgendaVotes(agendaID string, chartType int) (*dbtypes.AgendaVoteChoices, error)
-	TicketsPriceChartDetails() ([]dbtypes.ChartsData, error)
-	BlockSizeAndTxPerBlockDetails() ([]dbtypes.ChartsData, error)
-	TransactionsPerDayDetails() ([]dbtypes.ChartsData, error)
+	PgChartsData() ([][]dbtypes.ChartsData, error)
 }
 
 // TicketStatusText generates the text to display on the explorer's transaction
@@ -213,6 +211,8 @@ func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource
 		}
 	}
 
+	exp.prePopulateChartsCacheData()
+
 	exp.addRoutes()
 
 	exp.wsHub = NewWebsocketHub()
@@ -220,6 +220,24 @@ func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource
 	go exp.wsHub.run()
 
 	return exp
+}
+
+// prePopulateChartsCacheData should run in the background the first time the system is
+// initialized and consecutive times when a new block is added
+func (exp *explorerUI) prePopulateChartsCacheData() {
+	log.Info("Pre-populating the charts data ...")
+	pgData, err := exp.explorerSource.PgChartsData()
+	if err != nil {
+		log.Errorf("Invalid PG data found: %v", err)
+	}
+
+	sqliteData, err := exp.blockData.GetAllPoolValsAndSizesDetails()
+	if err != nil {
+		log.Errorf("Invalid SQLite data found: %v", err)
+	}
+
+	CacheChartsData = append(pgData, sqliteData)
+	log.Info("Done Pre-populating the charts data")
 }
 
 func (exp *explorerUI) Store(blockData *blockdata.BlockData, _ *wire.MsgBlock) error {
