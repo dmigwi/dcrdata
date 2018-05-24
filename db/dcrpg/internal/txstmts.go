@@ -76,10 +76,6 @@ const (
 	SelectRegularTxByHash = `SELECT id, block_hash, block_index FROM transactions WHERE tx_hash = $1 and tree=0;`
 	SelectStakeTxByHash   = `SELECT id, block_hash, block_index FROM transactions WHERE tx_hash = $1 and tree=1;`
 
-	SelectCoinSupply = `SELECT  t.block_height, t.time, v.value_in FROM transactions t, vins v WHERE
-	v.prev_tx_hash = '0000000000000000000000000000000000000000000000000000000000000000' AND
-	t.tx_hash = v.tx_hash AND not (is_valid = false AND tx_tree = 0) ORDER BY t.time;`
-
 	IndexTransactionTableOnBlockIn = `CREATE UNIQUE INDEX uix_tx_block_in
 		ON transactions(block_hash, block_index, tree)
 		;` // STORING (tx_hash, block_hash)

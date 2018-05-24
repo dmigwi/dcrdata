@@ -17,14 +17,15 @@ const (
 		tx_index INT4,
 		tx_tree INT2,
 		is_valid BOOLEAN,
+		block_time INT8,
 		prev_tx_hash TEXT,
 		prev_tx_index INT8,
 		prev_tx_tree INT2,
 		value_in INT8
 	);`
 
-	InsertVinRow0 = `INSERT INTO vins (tx_hash, tx_index, tx_tree, prev_tx_hash, prev_tx_index, prev_tx_tree, value_in, is_valid)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8) `
+	InsertVinRow0 = `INSERT INTO vins (tx_hash, tx_index, tx_tree, prev_tx_hash, prev_tx_index, prev_tx_tree,
+		value_in, is_valid, block_time) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) `
 	InsertVinRow = InsertVinRow0 + `RETURNING id;`
 	// InsertVinRowChecked = InsertVinRow0 +
 	// 	`ON CONFLICT (tx_hash, tx_index, tx_tree) DO NOTHING RETURNING id;`
@@ -62,6 +63,10 @@ const (
 	SelectSpendingTxByVinID      = `SELECT tx_hash, tx_index, tx_tree FROM vins WHERE id=$1;`
 	SelectAllVinInfoByID         = `SELECT * FROM vins WHERE id=$1;`
 	SetIsValidByTxHash           = `UPDATE vins SET is_valid = $1 WHERE tx_hash = $2;`
+
+	SelectCoinSupply = `SELECT block_time, value_in FROM vins WHERE
+		prev_tx_hash = '0000000000000000000000000000000000000000000000000000000000000000' AND
+		not (is_valid = false AND tx_tree = 0) ORDER BY block_time;`
 
 	CreateVinType = `CREATE TYPE vin_t AS (
 		prev_tx_hash TEXT,

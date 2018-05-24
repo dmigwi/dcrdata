@@ -599,6 +599,8 @@ func (exp *explorerUI) DecodeTxPage(w http.ResponseWriter, r *http.Request) {
 
 // Charts handles the charts displays showing the various charts plotted.
 func (exp *explorerUI) Charts(w http.ResponseWriter, r *http.Request) {
+	exp.prePopulateChartsCacheData()
+
 	if len(CacheChartsData) == 0 {
 		log.Errorf("Charts data missing : Queries are taking too long to run")
 		exp.ErrorPage(w, "Something went wrong...", "and it's not your fault, try refreshing, that usually fixes things", false)

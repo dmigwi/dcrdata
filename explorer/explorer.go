@@ -211,8 +211,6 @@ func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource
 		}
 	}
 
-	exp.prePopulateChartsCacheData()
-
 	exp.addRoutes()
 
 	exp.wsHub = NewWebsocketHub()

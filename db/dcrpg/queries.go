@@ -401,11 +401,11 @@ func SetSpendingForVinDbIDs(db *sql.DB, vinDbIDs []uint64) ([]int64, int64, erro
 		var prevOutHash, txHash string
 		var prevOutVoutInd, txVinInd uint32
 		var prevOutTree, txTree int8
-		var valueIn int64
+		var valueIn, blockTime int64
 		var isValid bool
 		var id uint64
 		err = vinGetStmt.QueryRow(vinDbID).Scan(&id,
-			&txHash, &txVinInd, &txTree, &isValid,
+			&txHash, &txVinInd, &txTree, &isValid, &blockTime,
 			&prevOutHash, &prevOutVoutInd, &prevOutTree, &valueIn)
 		if err != nil {
 			return addressRowsUpdated, 0, fmt.Errorf(`SelectAllVinInfoByID: `+
@@ -446,10 +446,10 @@ func SetSpendingForVinDbID(db *sql.DB, vinDbID uint64) (int64, error) {
 	var prevOutVoutInd, txVinInd uint32
 	var prevOutTree, txTree int8
 	var isValid bool
-	var valueIn int64
+	var valueIn, blockTime int64
 	var id uint64
 	err = dbtx.QueryRow(internal.SelectAllVinInfoByID, vinDbID).
-		Scan(&id, &txHash, &txVinInd, &txTree, &isValid,
+		Scan(&id, &txHash, &txVinInd, &txTree, &isValid, &blockTime,
 			&prevOutHash, &prevOutVoutInd, &prevOutTree, &valueIn)
 	if err != nil {
 		return 0, fmt.Errorf(`SetSpendingByVinID: %v + %v `+
@@ -928,10 +928,11 @@ func RetrieveFundingOutpointByVinID(db *sql.DB, vinDbID uint64) (tx string, inde
 }
 
 func RetrieveVinByID(db *sql.DB, vinDbID uint64) (prevOutHash string, prevOutVoutInd uint32,
-	prevOutTree int8, txHash string, txVinInd uint32, txTree int8, valueIn int64, isValid bool, err error) {
-	var id uint64
+	prevOutTree int8, txHash string, txVinInd uint32, txTree int8, valueIn int64, err error) {
+	var id, blockTime uint64
+	var isValid bool
 	err = db.QueryRow(internal.SelectAllVinInfoByID, vinDbID).
-		Scan(&id, &txHash, &txVinInd, &txTree, &isValid,
+		Scan(&id, &txHash, &txVinInd, &txTree, &isValid, &blockTime,
 			&prevOutHash, &prevOutVoutInd, &prevOutTree, &valueIn)
 	return
 }
@@ -1424,9 +1425,8 @@ func RetrieveCoinSupply(db *sql.DB) (items []dbtypes.ChartsData, err error) {
 	defer closeRows(rows)
 
 	for rows.Next() {
-		var timestamp, height uint64
-		var value int64
-		err = rows.Scan(&height, &timestamp, &value)
+		var value, timestamp int64
+		err = rows.Scan(&timestamp, &value)
 		if err != nil {
 			return
 		}
@@ -1436,9 +1436,8 @@ func RetrieveCoinSupply(db *sql.DB) (items []dbtypes.ChartsData, err error) {
 		}
 
 		items = append(items, dbtypes.ChartsData{
-			Time:  time.Unix(int64(timestamp), 0).Format("2006/01/02 15:04:05"),
 			Value: uint64(value),
-			Count: height,
+			Time: time.Unix(int64(timestamp), 0).Format("2006/01/02 15:04:05"),
 		})
 	}
 
@@ -1548,7 +1547,8 @@ func UpdateBlockNext(db *sql.DB, blockDbID uint64, next string) error {
 func InsertVin(db *sql.DB, dbVin dbtypes.VinTxProperty, checked bool) (id uint64, err error) {
 	err = db.QueryRow(internal.MakeVinInsertStatement(checked),
 		dbVin.TxID, dbVin.TxIndex, dbVin.TxTree,
-		dbVin.PrevTxHash, dbVin.PrevTxIndex, dbVin.PrevTxTree, dbVin.ValueIn, dbVin.IsValid).Scan(&id)
+		dbVin.PrevTxHash, dbVin.PrevTxIndex, dbVin.PrevTxTree,
+		dbVin.ValueIn, dbVin.IsValid, dbVin.Time).Scan(&id)
 	return
 }
 
@@ -1571,7 +1571,8 @@ func InsertVins(db *sql.DB, dbVins dbtypes.VinTxPropertyARRAY, checked bool) ([]
 	for _, vin := range dbVins {
 		var id uint64
 		err = stmt.QueryRow(vin.TxID, vin.TxIndex, vin.TxTree,
-			vin.PrevTxHash, vin.PrevTxIndex, vin.PrevTxTree, vin.ValueIn, vin.IsValid).Scan(&id)
+			vin.PrevTxHash, vin.PrevTxIndex, vin.PrevTxTree,
+			vin.ValueIn, vin.IsValid, vin.Time).Scan(&id)
 		if err != nil {
 			_ = stmt.Close() // try, but we want the QueryRow error back
 			if errRoll := dbtx.Rollback(); errRoll != nil {
