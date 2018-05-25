@@ -1436,8 +1436,8 @@ func RetrieveCoinSupply(db *sql.DB) (items []dbtypes.ChartsData, err error) {
 		}
 
 		items = append(items, dbtypes.ChartsData{
+			Time:  time.Unix(timestamp, 0).Format("2006/01/02 15:04:05"),
 			Value: uint64(value),
-			Time: time.Unix(int64(timestamp), 0).Format("2006/01/02 15:04:05"),
 		})
 	}
 

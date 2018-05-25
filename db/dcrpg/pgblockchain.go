@@ -825,8 +825,8 @@ func (pgb *ChainDB) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgBloc
 	return err
 }
 
-// PgChartsData fetches the charts data that is stored in pg
-func (pgb *ChainDB) PgChartsData() ([][]dbtypes.ChartsData, error) {
+// GetPgChartsData fetches the charts data that is stored in pg
+func (pgb *ChainDB) GetPgChartsData() ([][]dbtypes.ChartsData, error) {
 	var val = [][]dbtypes.ChartsData{}
 
 	tickets, err := RetrieveTicketsPriceByHeight(pgb.db)

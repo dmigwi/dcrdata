@@ -53,7 +53,7 @@ type explorerDataSourceLite interface {
 	GetMempool() []MempoolTx
 	TxHeight(txid string) (height int64)
 	BlockSubsidy(height int64, voters uint16) *dcrjson.GetBlockSubsidyResult
-	GetAllPoolValsAndSizesDetails() ([]dbtypes.ChartsData, error)
+	GetSqliteChartsData() ([][]dbtypes.ChartsData, error)
 }
 
 // explorerDataSource implements extra data retrieval functions that require a
@@ -67,7 +67,7 @@ type explorerDataSource interface {
 	FillAddressTransactions(addrInfo *AddressInfo) error
 	BlockMissedVotes(blockHash string) ([]string, error)
 	AgendaVotes(agendaID string, chartType int) (*dbtypes.AgendaVoteChoices, error)
-	PgChartsData() ([][]dbtypes.ChartsData, error)
+	GetPgChartsData() ([][]dbtypes.ChartsData, error)
 }
 
 // TicketStatusText generates the text to display on the explorer's transaction
@@ -211,6 +211,8 @@ func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource
 		}
 	}
 
+	exp.prePopulateChartsData()
+
 	exp.addRoutes()
 
 	exp.wsHub = NewWebsocketHub()
@@ -220,25 +222,31 @@ func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource
 	return exp
 }
 
-// prePopulateChartsCacheData should run in the background the first time the system is
+// prePopulateChartsData should run in the background the first time the system is
 // initialized and consecutive times when a new block is added
-func (exp *explorerUI) prePopulateChartsCacheData() {
+func (exp *explorerUI) prePopulateChartsData() {
 	log.Info("Pre-populating the charts data ...")
-	pgData, err := exp.explorerSource.PgChartsData()
+	pgData, err := exp.explorerSource.GetPgChartsData()
 	if err != nil {
 		log.Errorf("Invalid PG data found: %v", err)
 	}
 
-	sqliteData, err := exp.blockData.GetAllPoolValsAndSizesDetails()
+	sqliteData, err := exp.blockData.GetSqliteChartsData()
 	if err != nil {
 		log.Errorf("Invalid SQLite data found: %v", err)
 	}
 
-	CacheChartsData = append(pgData, sqliteData)
+	CacheChartsData = append(pgData, sqliteData...)
+
 	log.Info("Done Pre-populating the charts data")
 }
 
-func (exp *explorerUI) Store(blockData *blockdata.BlockData, _ *wire.MsgBlock) error {
+func (exp *explorerUI) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgBlock) error {
+	// Update the charts data when the block height is divisible by 5
+	if msgBlock.Header.Height%5 == 0 {
+		exp.prePopulateChartsData()
+	}
+
 	exp.NewBlockDataMtx.Lock()
 	bData := blockData.ToBlockExplorerSummary()
 	newBlockData := &BlockBasic{
