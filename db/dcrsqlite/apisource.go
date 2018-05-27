@@ -751,7 +751,7 @@ func (db *wiredDB) GetSqliteChartsData() ([][]dbtypes.ChartsData, error) {
 		return [][]dbtypes.ChartsData{}, err
 	}
 
-	feeData, err := db.RetrieveBlockMedianFeeInfo()
+	feeData, err := db.RetrieveBlockFeeInfo()
 	if err != nil {
 		return [][]dbtypes.ChartsData{}, err
 	}

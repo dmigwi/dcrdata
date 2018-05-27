@@ -89,8 +89,8 @@ func NewDB(db *sql.DB) (*DB, error) {
 		`from %s where height between ? and ?`, TableNameSummaries)
 	d.getPoolValSizeRangeSQL = fmt.Sprintf(`select poolsize, poolval `+
 		`from %s where height between ? and ?`, TableNameSummaries)
-	d.getAllPoolValSize = fmt.Sprintf(`select poolsize, poolval, time `+
-		`from %s order by time desc`, TableNameSummaries)
+	d.getAllPoolValSize = fmt.Sprintf(`select distinct poolsize, poolval, time `+
+		`from %s order by time`, TableNameSummaries)
 	d.getWinnersSQL = fmt.Sprintf(`select hash, winners from %s where height = ?`,
 		TableNameSummaries)
 	d.getWinnersByHashSQL = fmt.Sprintf(`select height, winners from %s where hash = ?`,
@@ -139,7 +139,7 @@ func NewDB(db *sql.DB) (*DB, error) {
         ) values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		`, TableNameStakeInfo)
 
-	d.getAllFeeInfoPerBlock = fmt.Sprintf(`SELECT height, fee_med, FROM %s ORDER BY height;`, TableNameStakeInfo)
+	d.getAllFeeInfoPerBlock = fmt.Sprintf(`SELECT distinct height, fee_med FROM %s ORDER BY height;`, TableNameStakeInfo)
 
 	var err error
 	if d.dbSummaryHeight, err = d.GetBlockSummaryHeight(); err != nil {
@@ -537,8 +537,8 @@ func (db *DB) RetrieveAllPoolValAndSize() ([]dbtypes.ChartsData, error) {
 	return chartsData, nil
 }
 
-// RetrieveBlockMedianFeeInfo fetches the block median fee chart data
-func (db *DB) RetrieveBlockMedianFeeInfo() ([]dbtypes.ChartsData, error) {
+// RetrieveBlockFeeInfo fetches the block median fee chart data
+func (db *DB) RetrieveBlockFeeInfo() ([]dbtypes.ChartsData, error) {
 	db.RLock()
 	db.RUnlock()
 
@@ -558,14 +558,18 @@ func (db *DB) RetrieveBlockMedianFeeInfo() ([]dbtypes.ChartsData, error) {
 	defer rows.Close()
 
 	for rows.Next() {
-		var fee_med float64
+		var feeMed float64
 		var height uint64
-		if err = rows.Scan(&height, &fee_med); err != nil {
+		if err = rows.Scan(&height, &feeMed); err != nil {
 			log.Errorf("Unable to scan for FeeInfoPerBlock fields: %v", err)
 		}
+		if height == 0 && feeMed == 0 {
+			continue
+		}
+
 		chartsData = append(chartsData, dbtypes.ChartsData{
 			Count:     height,
-			SizeFloat: fee_med,
+			SizeFloat: feeMed,
 		})
 	}
 	if err = rows.Err(); err != nil {

@@ -225,7 +225,7 @@ func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource
 // prePopulateChartsData should run in the background the first time the system is
 // initialized and consecutive times when a new block is added
 func (exp *explorerUI) prePopulateChartsData() {
-	log.Info("Pre-populating the charts data ...")
+	log.Info("Pre-populating the charts data. This may take a minute...")
 	pgData, err := exp.explorerSource.GetPgChartsData()
 	if err != nil {
 		log.Errorf("Invalid PG data found: %v", err)
@@ -242,13 +242,15 @@ func (exp *explorerUI) prePopulateChartsData() {
 }
 
 func (exp *explorerUI) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgBlock) error {
-	// Update the charts data when the block height is divisible by 5
-	if msgBlock.Header.Height%5 == 0 {
-		exp.prePopulateChartsData()
-	}
-
 	exp.NewBlockDataMtx.Lock()
 	bData := blockData.ToBlockExplorerSummary()
+
+	// Update the charts data after every five blocks
+	// or no chart data doesn't exist yet
+	if bData.Height%5 == 0 || len(CacheChartsData) == 0 {
+		go exp.prePopulateChartsData()
+	}
+
 	newBlockData := &BlockBasic{
 		Height:         int64(bData.Height),
 		Voters:         bData.Voters,
