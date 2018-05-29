@@ -246,7 +246,7 @@ func (exp *explorerUI) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgB
 	bData := blockData.ToBlockExplorerSummary()
 
 	// Update the charts data after every five blocks
-	// or no chart data doesn't exist yet
+	// or if no charts data doesn't exist yet
 	if bData.Height%5 == 0 || len(CacheChartsData) == 0 {
 		go exp.prePopulateChartsData()
 	}

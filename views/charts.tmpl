@@ -1,9 +1,10 @@
 {{define "charts"}}
 <!DOCTYPE html>
 <html lang="en">
+
 {{template "html-head" "Decred Charts"}}
 <body>
-
+    {{template "navbar" . }}
     <style type="text/css">
       .dygraph-legend {
         padding: 4px !important;
@@ -25,8 +26,6 @@
         z-index: 0 !important;
       }
     </style>
-
-    {{template "navbar"}}
 
     <div class="container" style="font-size:0.8em;">
          <br>
@@ -53,7 +52,18 @@
         <br>
     </div>
 
-    <script type="text/javascript" data-turbolinks-eval="false">
+    <script type="text/javascript">
+        function safeStartTurbolinksProgress() {
+            if(!Turbolinks.supported) { return; }
+            Turbolinks.controller.adapter.progressBar.setValue(0.5);
+            Turbolinks.controller.adapter.progressBar.show();
+        }
+
+        function safeStopTurbolinksProgress() {
+            if(!Turbolinks.supported) { return; }
+            Turbolinks.controller.adapter.progressBar.setValue(1);
+            Turbolinks.controller.adapter.progressBar.hide();
+        }
         var g = new Dygraph(
             document.getElementById("graphdiv"),
             "0,0\n",
@@ -151,6 +161,7 @@
                     labelsKMG2: labelsMG2,
                     title: titleName
                 });
+                safeStopTurbolinksProgress();
             }
 
         function resolvePromise(func) {
@@ -165,7 +176,7 @@
         var plotGraph = async function (value){
             switch(value){
                 case "1": // price graph
-                    if (tickets_price === undefined) { await resolvePromise(ticketsFunc)  }
+                    if (tickets_price === undefined) { await resolvePromise(ticketsFunc); console.log(">>>>>>>>>>>>>> 3");}
                     drawGraph(tickets_price, ["Date", "Price"], true, 'Price (Decred)', 'Date', 'Ticket Price Chart', false, false)
                 break;
 
@@ -226,8 +237,10 @@
                 break;
             }
         }
+        plotGraph("1")
 
-        var changeFunc = function () {
+        var changeFunc = function() {
+            safeStartTurbolinksProgress();
             var selectBox = document.getElementById("selectBox");
             var selectedValue = selectBox.options[selectBox.selectedIndex].value;
             if (currentGraph != selectedValue) {
@@ -235,9 +248,9 @@
                 currentGraph = selectedValue;
             }
         }
-
-       plotGraph("1")
     </script>
+
+    {{ template "footer" . }}
 </body>
 </html>
 {{end}}

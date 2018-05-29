@@ -31,7 +31,8 @@ func netName(chainParams *chaincfg.Params) string {
 		return strings.Title(chainParams.Name)
 	}
 }
-// CacheChartsData holds the prepopulate data that is used to draw the charts
+
+// CacheChartsData holds the prepopulated data that is used to draw the charts
 var CacheChartsData = make([][]dbtypes.ChartsData, 0)
 
 // Home is the page handler for the "/" path
@@ -607,9 +608,11 @@ func (exp *explorerUI) Charts(w http.ResponseWriter, r *http.Request) {
 
 	str, err := exp.templates.execTemplateToString("charts", struct {
 		Version string
+		NetName string
 		Data    [][]dbtypes.ChartsData
 	}{
 		exp.Version,
+		exp.NetName,
 		CacheChartsData,
 	})
 	if err != nil {
