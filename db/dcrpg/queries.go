@@ -1452,17 +1452,26 @@ func RetrieveBlockTicketsPoolValue(db *sql.DB) (items []dbtypes.ChartsData, err 
 
 	defer closeRows(rows)
 
+	var oldTimestamp uint64
 	for rows.Next() {
-		var timestamp, blockSize, blocksCount uint64
-		err = rows.Scan(&timestamp, &blockSize, &blocksCount)
+		var timestamp, blockSize, blocksCount, blockHeight uint64
+		err = rows.Scan(&timestamp, &blockSize, &blocksCount, &blockHeight)
 		if err != nil {
 			return
 		}
 
+		val := int64(oldTimestamp - timestamp)
+		if val < 0 {
+			val = val * -1
+		}
+		oldTimestamp = timestamp
+
 		items = append(items, dbtypes.ChartsData{
-			Time:  time.Unix(int64(timestamp), 0).Format("2006/01/02 15:04:05"),
-			Size:  blockSize,
-			Count: blocksCount,
+			Time:      time.Unix(int64(timestamp), 0).Format("2006/01/02 15:04:05"),
+			Size:      blockSize,
+			Count:     blocksCount,
+			Value:     uint64(val),
+			SizeFloat: float64(blockHeight),
 		})
 	}
 
