@@ -521,9 +521,9 @@ func (db *DB) RetrieveAllPoolValAndSize() ([]dbtypes.ChartsData, error) {
 			log.Errorf("Unable to scan for TicketPoolInfo fields: %v", err)
 		}
 		chartsData = append(chartsData, dbtypes.ChartsData{
-			Time:      time.Unix(int64(timestamp), 0).Format("2006/01/02 15:04:05"),
-			SizeFloat: psize,
-			PoolValue: pval,
+			Time:   time.Unix(int64(timestamp), 0).Format("2006/01/02 15:04:05"),
+			SizeF:  psize,
+			ValueF: pval,
 		})
 	}
 	if err = rows.Err(); err != nil {
@@ -568,8 +568,8 @@ func (db *DB) RetrieveBlockFeeInfo() ([]dbtypes.ChartsData, error) {
 		}
 
 		chartsData = append(chartsData, dbtypes.ChartsData{
-			Count:     height,
-			SizeFloat: feeMed,
+			Count: height,
+			SizeF: feeMed,
 		})
 	}
 	if err = rows.Err(); err != nil {

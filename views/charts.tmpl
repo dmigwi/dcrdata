@@ -66,7 +66,7 @@
         }
         var g = new Dygraph(
             document.getElementById("graphdiv"),
-            "0,0\n",
+            "1,1\n",
             {
                 digitsAfterDecimal: 8,
                 showRangeSelector: true,
@@ -93,8 +93,8 @@
             tickets_price = "";
             difficulty = "";
             ticketsPrice.forEach(function(item){
-                tickets_price = tickets_price+ item.Time+ ", "+ item.Value/100000000+ "\n";
-                difficulty = difficulty+ item.Time+ ", "+ item.SizeFloat+ "\n";
+                tickets_price = tickets_price+ item.Time+ ", "+ item.ValueF+ "\n";
+                difficulty = difficulty+ item.Time+ ", "+ item.SizeF+ "\n";
             });
         }
 
@@ -102,8 +102,7 @@
             var supply = 0;
             coin_supply = "";
             coinSupply.forEach(function(item){
-                supply = supply + (item.Value/100000000)
-                coin_supply = coin_supply + item.Time+ ", "+ supply+ "\n";
+                coin_supply = coin_supply + item.Time+ ", "+ (isNaN(item.ValueF) ? 0 : item.ValueF) + "\n";
             });
         }
         
@@ -119,11 +118,10 @@
                 blockchain_size = blockchain_size + item.Time+ ", "+ size+"\n";
                 tx_per_block = tx_per_block + item.Time + ", " + item.Count+"\n";
 
-                var height = Math.trunc(item.SizeFloat);
-                if (height === 0) {
+                if (isNaN(item.Value)) {
                     return;
                 }
-                time_btw_blocks = time_btw_blocks + height + "," + item.Value + "\n";
+                time_btw_blocks = time_btw_blocks +  item.Value + "," + (isNaN(item.ValueF) ? 0 : item.ValueF) + "\n";
             });
         }
 
@@ -138,15 +136,15 @@
             pool_size = "";
             pool_value = "";
             poolInfo.forEach(function(item){
-                pool_size =pool_size + item.Time + ", " + item.SizeFloat+ "\n";
-                pool_value = pool_value + item.Time + ", " + item.PoolValue+ "\n";
+                pool_size =pool_size + item.Time + ", " + (isNaN(item.SizeF) ? 0: item.SizeF) + "\n";
+                pool_value = pool_value + item.Time + ", " + (isNaN(item.ValueF) ? 0: item.ValueF) + "\n";
             });
         }
 
         var blockFeeFunc = function (){
             fee_per_block = "";
             blockFee.forEach(function(item){
-                fee_per_block = fee_per_block + item.Count + ", " + item.SizeFloat+"\n";
+                fee_per_block = fee_per_block + item.Count + ", " + (isNaN(item.SizeF) ? 0: item.SizeF)+"\n";
             }); 
         }
 
@@ -176,7 +174,7 @@
         var plotGraph = async function (value){
             switch(value){
                 case "1": // price graph
-                    if (tickets_price === undefined) { await resolvePromise(ticketsFunc); console.log(">>>>>>>>>>>>>> 3");}
+                    if (tickets_price === undefined) { await resolvePromise(ticketsFunc); }
                     drawGraph(tickets_price, ["Date", "Price"], true, 'Price (Decred)', 'Date', 'Ticket Price Chart', false, false)
                 break;
 

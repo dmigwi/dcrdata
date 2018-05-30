@@ -1406,9 +1406,9 @@ func RetrieveTicketsPriceByHeight(db *sql.DB) (items []dbtypes.ChartsData, err e
 		}
 
 		items = append(items, dbtypes.ChartsData{
-			Time:      time.Unix(int64(timestamp), 0).Format("2006/01/02 15:04:05"),
-			Value:     price,
-			SizeFloat: difficulty,
+			Time:   time.Unix(int64(timestamp), 0).Format("2006/01/02 15:04:05"),
+			ValueF: float64(price) / 100000000,
+			SizeF:  difficulty,
 		})
 	}
 
@@ -1424,6 +1424,7 @@ func RetrieveCoinSupply(db *sql.DB) (items []dbtypes.ChartsData, err error) {
 
 	defer closeRows(rows)
 
+	var sum float64
 	for rows.Next() {
 		var value, timestamp int64
 		err = rows.Scan(&timestamp, &value)
@@ -1435,9 +1436,10 @@ func RetrieveCoinSupply(db *sql.DB) (items []dbtypes.ChartsData, err error) {
 			value = 0
 		}
 
+		sum += float64(value) / 100000000
 		items = append(items, dbtypes.ChartsData{
-			Time:  time.Unix(timestamp, 0).Format("2006/01/02 15:04:05"),
-			Value: uint64(value),
+			Time:   time.Unix(timestamp, 0).Format("2006/01/02 15:04:05"),
+			ValueF: sum,
 		})
 	}
 
@@ -1467,11 +1469,11 @@ func RetrieveBlockTicketsPoolValue(db *sql.DB) (items []dbtypes.ChartsData, err 
 		oldTimestamp = timestamp
 
 		items = append(items, dbtypes.ChartsData{
-			Time:      time.Unix(int64(timestamp), 0).Format("2006/01/02 15:04:05"),
-			Size:      blockSize,
-			Count:     blocksCount,
-			Value:     uint64(val),
-			SizeFloat: float64(blockHeight),
+			Time:   time.Unix(int64(timestamp), 0).Format("2006/01/02 15:04:05"),
+			Size:   blockSize,
+			Count:  blocksCount,
+			ValueF: float64(val),
+			Value:  blockHeight,
 		})
 	}
 
