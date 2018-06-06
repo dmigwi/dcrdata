@@ -267,6 +267,7 @@ func (pgb *ChainDB) VersionCheck(client ...*rpcclient.Client) error {
 	for tab, ver := range vers {
 		log.Debugf("Table %s: v%s", tab, ver)
 	}
+
 	if tableUpgrades := TableUpgradesRequired(vers); len(tableUpgrades) > 0 {
 		if tableUpgrades[0].UpgradeType == "upgrade" {
 			// CheckForAuxDBUpgrade makes db upgrades that are currently supported.

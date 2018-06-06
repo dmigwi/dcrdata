@@ -45,6 +45,11 @@ func (pgb *ChainDB) CheckForAuxDBUpgrade(dcrdClient *rpcclient.Client) (bool, er
 			return false, err
 		}
 
+		err = pgb.handleCoinSupplyUpgrade(smartClient)
+		if err != nil {
+			return false, err
+		}
+
 		return true, versionAllTables(pgb.db, version)
 	}
 
@@ -106,6 +111,121 @@ func (pgb *ChainDB) handleAgendasTableUpgrade(client *rpcutils.BlockGate) error 
 	return nil
 }
 
+// handleCoinSupplyUpgrade implements the upgrade do the new newly added columns in the vins table.
+// The new columns are mainly used to the coin supply chart.
+// If all the new columns are not added quite the db upgrade.
+func (pgb *ChainDB) handleCoinSupplyUpgrade(client *rpcutils.BlockGate) error {
+	c, err := addNewColumns(pgb.db)
+	if c == 0 {
+		return err
+	}
+
+	height, err := pgb.HeightDB()
+	if err != nil {
+		return err
+	}
+
+	log.Infof("Found the Best block at height: %v", height)
+
+	var limit, i, count uint64
+	var rowsUpdated int64
+
+	// Fetch the block associated with the provided block height.
+	for ; i < height+1; i++ {
+		var isValid bool
+		var block, err = client.UpdateToBlock(int64(i))
+		if err != nil {
+			return err
+		}
+
+		if i%5000 == 0 {
+			limit += 5000
+			if height < limit {
+				limit = height
+			}
+
+			log.Infof("Upgrading the vins table (Coin Supply Upgrade) from height %v to %v ", i, limit-1)
+		}
+
+		var msgBlock = block.MsgBlock()
+
+		err = pgb.db.QueryRow(`SELECT is_valid FROM blocks WHERE hash = $1 ;`, msgBlock.BlockHash().String()).Scan(&isValid)
+		if err != nil {
+			return err
+		}
+
+		_, _, stakedDbTxVins := dbtypes.ExtractBlockTransactions(msgBlock, wire.TxTreeStake, pgb.chainParams, isValid)
+		_, _, regularDbTxVins := dbtypes.ExtractBlockTransactions(msgBlock, wire.TxTreeRegular, pgb.chainParams, isValid)
+		dbTxVins := append(stakedDbTxVins, regularDbTxVins...)
+
+		for _, v := range dbTxVins {
+			for _, s := range v {
+				result, err := pgb.db.Exec(internal.SetVinsTableCoinSupplyUpgrade,
+					s.IsValid, s.Time, s.ValueIn, s.TxID, s.TxIndex, s.TxTree)
+				if err != nil {
+					return err
+				}
+
+				c, err := result.RowsAffected()
+				if err != nil {
+					return err
+				}
+				count++
+
+				rowsUpdated += c
+			}
+		}
+	}
+
+	var rowsToUpdate int64
+	err = pgb.db.QueryRow("select count(*) from vins ;").Scan(&rowsToUpdate)
+	if err != nil {
+		return err
+	}
+
+	if rowsToUpdate != rowsUpdated {
+		return fmt.Errorf("Expected to update all of %v vins records but %v records were not updated: %v",
+			rowsToUpdate, rowsToUpdate-rowsUpdated, count)
+	}
+
+	log.Infof("A total %v records in the vins table (Coin Supply Upgrade) were successfully upgraded.", rowsToUpdate)
+
+	return nil
+}
+
+// addNewColumns checks if the new columns all ready exists
+// and add them if they are missing.
+func addNewColumns(db *sql.DB) (int, error) {
+	var columnsAdded = 0
+
+	for name, dataType := range map[string]string{"is_valid": "BOOLEAN", "block_time": "INT8", "value_in": "INT8"} {
+		var isRowFound bool
+
+		err := db.QueryRow(`SELECT EXISTS( SELECT column_name FROM INFORMATION_SCHEMA.COLUMNS 
+			WHERE table_name = 'vins' AND column_name = $1 );`, name).Scan(&isRowFound)
+		if err != nil {
+			return 0, err
+		}
+
+		if isRowFound {
+			return 0, nil
+		}
+
+		result, err := db.Exec(fmt.Sprintf("ALTER TABLE vins ADD COLUMN %s %s ;", name, dataType))
+		if err != nil {
+			return 0, err
+		}
+
+		_, err = result.RowsAffected()
+		if err != nil {
+			return 0, err
+		}
+
+		columnsAdded++
+	}
+	return columnsAdded, nil
+}
+
 func (pgb *ChainDB) tableUpgrade(block *dcrutil.Block) (int64, error) {
 	var rowsUpdated int64
 	var milestones = map[string]dbtypes.MileStone{
@@ -126,7 +246,7 @@ func (pgb *ChainDB) tableUpgrade(block *dcrutil.Block) (int64, error) {
 
 	var msgBlock = block.MsgBlock()
 	var dbTxns, _, _ = dbtypes.ExtractBlockTransactions(msgBlock,
-		wire.TxTreeStake, pgb.chainParams)
+		wire.TxTreeStake, pgb.chainParams, true)
 
 	for i, tx := range dbTxns {
 		if tx.TxType != int16(stake.TxTypeSSGen) {
