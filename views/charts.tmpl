@@ -93,8 +93,8 @@
             tickets_price = "";
             difficulty = "";
             ticketsPrice.forEach(function(item){
-                tickets_price = tickets_price+ item.Time+ ", "+ item.ValueF+ "\n";
-                difficulty = difficulty+ item.Time+ ", "+ item.SizeF+ "\n";
+                tickets_price = tickets_price+ item.time+ ", "+ item.valuef+ "\n";
+                difficulty = difficulty+ item.time+ ", "+ item.sizef+ "\n";
             });
         }
 
@@ -102,33 +102,33 @@
             var supply = 0;
             coin_supply = "";
             coinSupply.forEach(function(item){
-                coin_supply = coin_supply + item.Time+ ", "+ (isNaN(item.ValueF) ? 0 : item.ValueF) + "\n";
+                coin_supply = coin_supply + item.time+ ", "+ (isNaN(item.valuef) ? 0 : item.valuef) + "\n";
             });
         }
         
-        var sizeFunc = function (){
+        var sizefunc = function (){
             var size = 0;
             block_size = "";
             blockchain_size = "";
             tx_per_block = "";
             time_btw_blocks = "";
             blockSize.forEach(function(item){
-                block_size = block_size + item.Time+ ", "+ item.Size+ "\n";
-                size = size + item.Size
-                blockchain_size = blockchain_size + item.Time+ ", "+ size+"\n";
-                tx_per_block = tx_per_block + item.Time + ", " + item.Count+"\n";
+                block_size = block_size + item.time+ ", "+ item.size+ "\n";
+                size = size + item.size
+                blockchain_size = blockchain_size + item.time+ ", "+ size+"\n";
+                tx_per_block = tx_per_block + item.time + ", " + item.count+"\n";
 
-                if (isNaN(item.Value)) {
+                if (isNaN(item.value)) {
                     return;
                 }
-                time_btw_blocks = time_btw_blocks +  item.Value + "," + (isNaN(item.ValueF) ? 0 : item.ValueF) + "\n";
+                time_btw_blocks = time_btw_blocks +  item.value + "," + (isNaN(item.valuef) ? 0 : item.valuef) + "\n";
             });
         }
 
         var txFunc = function (){
             tx_per_day = "";
             txPerDay.forEach(function(item){
-                tx_per_day = tx_per_day + item.Time + ", " + item.Count+"\n";
+                tx_per_day = tx_per_day + item.time + ", " + item.count+"\n";
             });
         }
 
@@ -136,15 +136,15 @@
             pool_size = "";
             pool_value = "";
             poolInfo.forEach(function(item){
-                pool_size =pool_size + item.Time + ", " + (isNaN(item.SizeF) ? 0: item.SizeF) + "\n";
-                pool_value = pool_value + item.Time + ", " + (isNaN(item.ValueF) ? 0: item.ValueF) + "\n";
+                pool_size =pool_size + item.time + ", " + (isNaN(item.sizef) ? 0: item.sizef) + "\n";
+                pool_value = pool_value + item.time + ", " + (isNaN(item.valuef) ? 0: item.valuef) + "\n";
             });
         }
 
         var blockFeeFunc = function (){
             fee_per_block = "";
             blockFee.forEach(function(item){
-                fee_per_block = fee_per_block + item.Count + ", " + (isNaN(item.SizeF) ? 0: item.SizeF)+"\n";
+                fee_per_block = fee_per_block + item.count + ", " + (isNaN(item.sizef) ? 0: item.sizef)+"\n";
             }); 
         }
 
@@ -191,17 +191,17 @@
                 break;
                 
                 case "4": // block size graph
-                    if (block_size === undefined) { await resolvePromise(sizeFunc);}
+                    if (block_size === undefined) { await resolvePromise(sizefunc);}
                     drawGraph(block_size, ["Date", "Block Size"], false, 'Block Size', 'Date','Average Block Size Chart', true, false)
                 break;
 
                 case "5": // blockchain size graph
-                    if (blockchain_size === undefined) { await resolvePromise(sizeFunc); }
+                    if (blockchain_size === undefined) { await resolvePromise(sizefunc); }
                     drawGraph(blockchain_size, ["Date", "BlockChain Size"], true, 'BlockChain Size', 'Date', 'BlockChain Size Chart', false, true)
                 break;
 
                 case "6":  // tx per block graph
-                    if (tx_per_block === undefined) { await resolvePromise(sizeFunc); }
+                    if (tx_per_block === undefined) { await resolvePromise(sizefunc); }
                     drawGraph(tx_per_block, ["Date", "Number of Transactions Per Block"], false, 'Number of Transactions', 'Date',
                      'Number of Transactions Per Block Chart', false, false)
                 break;
@@ -229,7 +229,7 @@
                 break;
 
                 case "11": // Duration between blocks graph
-                    if (time_btw_blocks === undefined) { await resolvePromise(sizeFunc);}
+                    if (time_btw_blocks === undefined) { await resolvePromise(sizefunc);}
                     drawGraph(time_btw_blocks, ["Block Height", "Duration Between Block"], false, 'Duration Between Block (Seconds)', 'Block Height',
                     'Duration Between Blocks Chart', true, false)
                 break;
