@@ -68,9 +68,9 @@ const (
 	SetVinsTableCoinSupplyUpgrade = `UPDATE vins SET is_valid = $1, block_time = $2, value_in = $3
 		WHERE tx_hash = $4 and tx_index = $5 and tx_tree = $6;`
 
-	SelectCoinSupply = `SELECT block_time, value_in FROM vins WHERE
+	SelectCoinSupply = `SELECT block_time, sum(value_in) FROM vins WHERE
 		prev_tx_hash = '0000000000000000000000000000000000000000000000000000000000000000' AND
-		not (is_valid = false AND tx_tree = 0) ORDER BY block_time;`
+		not (is_valid = false AND tx_tree = 0) GROUP BY block_time ORDER BY block_time;`
 
 	CreateVinType = `CREATE TYPE vin_t AS (
 		prev_tx_hash TEXT,
