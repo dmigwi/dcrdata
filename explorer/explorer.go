@@ -71,6 +71,7 @@ type explorerDataSource interface {
 	AgendaVotes(agendaID string, chartType int) (*dbtypes.AgendaVoteChoices, error)
 	GetPgChartsData() (map[string]*dbtypes.ChartsData, error)
 	GetTicketsPriceByHeight() (*dbtypes.ChartsData, error)
+	TicketPoolVisualization(bars string) ([]*dbtypes.PoolTicketsData, *dbtypes.PoolTicketsData, error)
 }
 
 // cacheChartsData holds the prepopulated data that is used to draw the charts
@@ -216,7 +217,7 @@ func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource
 		return nil
 	}
 	tmpls := []string{"home", "explorer", "mempool", "block", "tx", "address",
-		"rawtx", "status", "parameters", "agenda", "agendas", "charts"}
+		"rawtx", "error", "parameters", "agenda", "agendas", "charts", "ticketpool"}
 
 	tempDefaults := []string{"extras"}
 

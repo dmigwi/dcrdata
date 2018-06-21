@@ -522,6 +522,7 @@ func mainCore() error {
 	webMux.Get("/decodetx", explore.DecodeTxPage)
 	webMux.Get("/search", explore.Search)
 	webMux.Get("/charts", explore.Charts)
+	webMux.Get("/ticketpool", explore.Ticketpool)
 
 	if usePG {
 		chainDBRPC, _ := dcrpg.NewChainDBRPC(auxDB, dcrdClient)
