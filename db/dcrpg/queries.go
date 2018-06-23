@@ -9,7 +9,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/decred/dcrd/blockchain/stake"
 	"github.com/decred/dcrd/chaincfg"
@@ -1406,7 +1405,7 @@ func RetrieveTicketsPriceByHeight(db *sql.DB) (items []dbtypes.ChartsData, err e
 		}
 
 		items = append(items, dbtypes.ChartsData{
-			Time:   time.Unix(int64(timestamp), 0).Format("2006/01/02 15:04:05"),
+			Time:   timestamp,
 			ValueF: float64(price) / 100000000,
 			SizeF:  difficulty,
 		})
@@ -1437,10 +1436,7 @@ func RetrieveCoinSupply(db *sql.DB) (items []dbtypes.ChartsData, err error) {
 		}
 
 		sum += float64(value) / 100000000
-		items = append(items, dbtypes.ChartsData{
-			Time:   time.Unix(timestamp, 0).Format("2006/01/02 15:04:05"),
-			ValueF: sum,
-		})
+		items = append(items, dbtypes.ChartsData{Time: uint64(timestamp), ValueF: sum})
 	}
 
 	return
@@ -1469,7 +1465,7 @@ func RetrieveBlockTicketsPoolValue(db *sql.DB) (items []dbtypes.ChartsData, err 
 		oldTimestamp = timestamp
 
 		items = append(items, dbtypes.ChartsData{
-			Time:   time.Unix(int64(timestamp), 0).Format("2006/01/02 15:04:05"),
+			Time:   timestamp,
 			Size:   blockSize,
 			Count:  blocksCount,
 			ValueF: float64(val),
@@ -1489,17 +1485,13 @@ func RetrieveTxPerDay(db *sql.DB) (items []dbtypes.ChartsData, err error) {
 	defer closeRows(rows)
 
 	for rows.Next() {
-		var dateVal string
-		var count uint64
-		err = rows.Scan(&dateVal, &count)
+		var entry dbtypes.ChartsData
+		err = rows.Scan(&entry.TimeStr, &entry.Count)
 		if err != nil {
 			return
 		}
 
-		items = append(items, dbtypes.ChartsData{
-			Time:  dateVal,
-			Count: count,
-		})
+		items = append(items, entry)
 	}
 
 	return

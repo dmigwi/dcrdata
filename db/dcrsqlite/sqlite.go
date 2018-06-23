@@ -10,7 +10,6 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/decred/dcrdata/db/dbtypes"
 
@@ -521,7 +520,7 @@ func (db *DB) RetrieveAllPoolValAndSize() ([]dbtypes.ChartsData, error) {
 			log.Errorf("Unable to scan for TicketPoolInfo fields: %v", err)
 		}
 		chartsData = append(chartsData, dbtypes.ChartsData{
-			Time:   time.Unix(int64(timestamp), 0).Format("2006/01/02 15:04:05"),
+			Time:   timestamp,
 			SizeF:  psize,
 			ValueF: pval,
 		})

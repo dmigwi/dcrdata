@@ -90,61 +90,59 @@
         var currentGraph = "1";
 
         var ticketsFunc =function (){
-            tickets_price = "";
-            difficulty = "";
-            ticketsPrice.forEach(function(item){
-                tickets_price = tickets_price+ item.time+ ", "+ item.valuef+ "\n";
-                difficulty = difficulty+ item.time+ ", "+ item.sizef+ "\n";
+            tickets_price = [];
+            difficulty = [];
+            ticketsPrice.forEach(function(n){
+                tickets_price.push([new Date (n.time*1000), n.valuef]);
+                difficulty.push([new Date(n.time*1000), n.sizef]);
             });
         }
 
         var supplyFunc = function (){
             var supply = 0;
-            coin_supply = "";
-            coinSupply.forEach(function(item){
-                coin_supply = coin_supply + item.time+ ", "+ (isNaN(item.valuef) ? 0 : item.valuef) + "\n";
+            coin_supply = [];
+            coinSupply.forEach(function(n){
+                coin_supply.push([new Date(n.time*1000), (isNaN(n.valuef) ? 0 : n.valuef)]);
             });
         }
         
         var sizefunc = function (){
             var size = 0;
-            block_size = "";
-            blockchain_size = "";
-            tx_per_block = "";
-            time_btw_blocks = "";
-            blockSize.forEach(function(item){
-                block_size = block_size + item.time+ ", "+ item.size+ "\n";
-                size = size + item.size
-                blockchain_size = blockchain_size + item.time+ ", "+ size+"\n";
-                tx_per_block = tx_per_block + item.time + ", " + item.count+"\n";
+            block_size = [];
+            blockchain_size = [];
+            tx_per_block = [];
+            time_btw_blocks = [];
+            blockSize.forEach(function(n){
+                block_size.push([new Date(n.time*1000), n.size]);
+                size = size + n.size
+                blockchain_size.push([new Date(n.time*1000), size]);
+                tx_per_block.push([new Date(n.time*1000), n.count]);
 
-                if (isNaN(item.value)) {
-                    return;
-                }
-                time_btw_blocks = time_btw_blocks +  item.value + "," + (isNaN(item.valuef) ? 0 : item.valuef) + "\n";
+                if (isNaN(n.value)) { return; }
+                time_btw_blocks.push([n.value, (isNaN(n.valuef) ? 0 : n.valuef)]);
             });
         }
 
         var txFunc = function (){
-            tx_per_day = "";
-            txPerDay.forEach(function(item){
-                tx_per_day = tx_per_day + item.time + ", " + item.count+"\n";
+            tx_per_day = [];
+            txPerDay.forEach(function(n){
+                tx_per_day.push([new Date(n.timestr), n.count]);
             });
         }
 
         var poolFunc = function (){
-            pool_size = "";
-            pool_value = "";
-            poolInfo.forEach(function(item){
-                pool_size =pool_size + item.time + ", " + (isNaN(item.sizef) ? 0: item.sizef) + "\n";
-                pool_value = pool_value + item.time + ", " + (isNaN(item.valuef) ? 0: item.valuef) + "\n";
+            pool_size = [];
+            pool_value = [];
+            poolInfo.forEach(function(n){
+                pool_size.push([new Date(n.time*1000), (isNaN(n.sizef) ? 0: n.sizef)]);
+                pool_value.push([new Date(n.time*1000), (isNaN(n.valuef) ? 0: n.valuef)]);
             });
         }
 
         var blockFeeFunc = function (){
-            fee_per_block = "";
-            blockFee.forEach(function(item){
-                fee_per_block = fee_per_block + item.count + ", " + (isNaN(item.sizef) ? 0: item.sizef)+"\n";
+            fee_per_block = [];
+            blockFee.forEach(function(n){
+                fee_per_block.push([n.count, (isNaN(n.sizef) ? 0: n.sizef)]);
             }); 
         }
 
