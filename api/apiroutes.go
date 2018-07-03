@@ -1047,6 +1047,17 @@ func (c *appContext) addressTotals(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, totals, c.getIndentQuery(r))
 }
 
+func (c *appContext) getChartTypeData(w http.ResponseWriter, r *http.Request) {
+	chartType := m.GetChartTypeCtx(r)
+	chartData, ok := explorer.CacheChartsData[chartType]
+	if !ok {
+		http.Error(w, http.StatusText(422), 422)
+		log.Warnf("No data matching '%v' chart Type was found: length %v", chartType, len(explorer.CacheChartsData))
+		return
+	}
+	writeJSON(w, chartData, c.getIndentQuery(r))
+}
+
 func (c *appContext) getAddressTransactions(w http.ResponseWriter, r *http.Request) {
 	address := m.GetAddressCtx(r)
 	if address == "" {

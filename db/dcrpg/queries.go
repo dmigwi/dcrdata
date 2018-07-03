@@ -1388,10 +1388,11 @@ func closeRows(rows *sql.Rows) {
 // RetrieveTicketsPriceByHeight fetches the ticket price and its timestamp that are used
 // to display the ticket price variation on ticket price chart. This data is fetched at an interval
 // of 144 blocks.
-func RetrieveTicketsPriceByHeight(db *sql.DB) (items []dbtypes.ChartsData, err error) {
+func RetrieveTicketsPriceByHeight(db *sql.DB) (*dbtypes.ChartsData, error) {
+	var items = new(dbtypes.ChartsData)
 	rows, err := db.Query(internal.SelectBlocksTicketsPrice)
 	if err != nil {
-		return
+		return nil, err
 	}
 
 	defer closeRows(rows)
@@ -1401,24 +1402,23 @@ func RetrieveTicketsPriceByHeight(db *sql.DB) (items []dbtypes.ChartsData, err e
 		var difficulty float64
 		err = rows.Scan(&price, &timestamp, &difficulty)
 		if err != nil {
-			return
+			return nil, err
 		}
 
-		items = append(items, dbtypes.ChartsData{
-			Time:   timestamp,
-			ValueF: float64(price) / 100000000,
-			SizeF:  difficulty,
-		})
+		items.Time = append(items.Time, timestamp)
+		items.ValueF = append(items.ValueF, float64(price)/100000000)
+		items.SizeF = append(items.SizeF, difficulty)
 	}
 
-	return
+	return items, nil
 }
 
-// RetrieveCoinSupply fetches the coin supply data
-func RetrieveCoinSupply(db *sql.DB) (items []dbtypes.ChartsData, err error) {
-	rows, err := db.Query(internal.SelectCoinSupply)
+// retrieveCoinSupply fetches the coin supply data
+func retrieveCoinSupply(db *sql.DB) (*dbtypes.ChartsData, error) {
+	var items = new(dbtypes.ChartsData)
+	var rows, err = db.Query(internal.SelectCoinSupply)
 	if err != nil {
-		return
+		return nil, err
 	}
 
 	defer closeRows(rows)
@@ -1428,73 +1428,126 @@ func RetrieveCoinSupply(db *sql.DB) (items []dbtypes.ChartsData, err error) {
 		var value, timestamp int64
 		err = rows.Scan(&timestamp, &value)
 		if err != nil {
-			return
+			return nil, err
 		}
 
 		if value < 0 {
 			value = 0
 		}
-
 		sum += float64(value) / 100000000
-		items = append(items, dbtypes.ChartsData{Time: uint64(timestamp), ValueF: sum})
+		items.Time = append(items.Time, uint64(timestamp))
+		items.ValueF = append(items.ValueF, sum)
 	}
 
-	return
+	return items, nil
 }
 
-func RetrieveBlockTicketsPoolValue(db *sql.DB) (items []dbtypes.ChartsData, err error) {
+func retrieveBlockTicketsPoolValue(db *sql.DB) (*dbtypes.ChartsData, error) {
+	var items = new(dbtypes.ChartsData)
 	rows, err := db.Query(internal.SelectBlocksBlockSize)
 	if err != nil {
-		return
+		return nil, err
 	}
 
 	defer closeRows(rows)
 
-	var oldTimestamp uint64
+	var oldTimestamp, chainsize uint64
 	for rows.Next() {
 		var timestamp, blockSize, blocksCount, blockHeight uint64
 		err = rows.Scan(&timestamp, &blockSize, &blocksCount, &blockHeight)
 		if err != nil {
-			return
+			return nil, err
 		}
 
 		val := int64(oldTimestamp - timestamp)
 		if val < 0 {
 			val = val * -1
 		}
+		chainsize += blockSize
 		oldTimestamp = timestamp
-
-		items = append(items, dbtypes.ChartsData{
-			Time:   timestamp,
-			Size:   blockSize,
-			Count:  blocksCount,
-			ValueF: float64(val),
-			Value:  blockHeight,
-		})
+		items.Time = append(items.Time, timestamp)
+		items.Size = append(items.Size, blockSize)
+		items.ChainSize = append(items.ChainSize, chainsize)
+		items.Count = append(items.Count, blocksCount)
+		items.ValueF = append(items.ValueF, float64(val))
+		items.Value = append(items.Value, blockHeight)
 	}
 
-	return
+	return items, nil
 }
 
-func RetrieveTxPerDay(db *sql.DB) (items []dbtypes.ChartsData, err error) {
-	rows, err := db.Query(internal.SelectTxsPerDay)
+func retrieveTxPerDay(db *sql.DB) (*dbtypes.ChartsData, error) {
+	var items = new(dbtypes.ChartsData)
+	var rows, err = db.Query(internal.SelectTxsPerDay)
 	if err != nil {
-		return
+		return nil, err
 	}
 
 	defer closeRows(rows)
 
 	for rows.Next() {
-		var entry dbtypes.ChartsData
-		err = rows.Scan(&entry.TimeStr, &entry.Count)
+		var timestr string
+		var count uint64
+
+		err = rows.Scan(&timestr, &count)
 		if err != nil {
-			return
+			return nil, err
 		}
 
-		items = append(items, entry)
+		items.TimeStr = append(items.TimeStr, timestr)
+		items.Count = append(items.Count, count)
+	}
+	return items, nil
+}
+
+func retrieveTicketSpendTypePerBlock(db *sql.DB) (*dbtypes.ChartsData, error) {
+	var items = new(dbtypes.ChartsData)
+	var rows, err = db.Query(internal.SelectTicketSpendTypeByBlock)
+	if err != nil {
+		return nil, err
 	}
 
-	return
+	defer closeRows(rows)
+
+	for rows.Next() {
+		var height, unspent, revoked, voted uint64
+
+		err = rows.Scan(&height, &unspent, &revoked, &voted)
+		if err != nil {
+			return nil, err
+		}
+
+		items.Height = append(items.Height, height)
+		items.Unspent = append(items.Unspent, unspent)
+		items.Revoked = append(items.Revoked, revoked)
+		items.Voted = append(items.Voted, voted)
+	}
+	return items, nil
+}
+
+func retrieveTicketByOutputCount(db *sql.DB) (*dbtypes.ChartsData, error) {
+	var items = new(dbtypes.ChartsData)
+	var rows, err = db.Query(internal.SelectTicketsByOutputCount)
+	if err != nil {
+		return nil, err
+	}
+
+	defer closeRows(rows)
+
+	for rows.Next() {
+		var height, solo, pooled, txsplit uint64
+
+		err = rows.Scan(&height, &solo, &pooled, &txsplit)
+		if err != nil {
+			return nil, err
+		}
+
+		items.Height = append(items.Height, height)
+		items.Solo = append(items.Solo, solo)
+		items.Pooled = append(items.Pooled, pooled)
+		items.TxSplit = append(items.TxSplit, txsplit)
+	}
+	return items, nil
 }
 
 func RetrieveVoutValues(db *sql.DB, txHash string) (values []uint64, txInds []uint32, txTrees []int8, err error) {

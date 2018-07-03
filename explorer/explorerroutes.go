@@ -33,7 +33,7 @@ func netName(chainParams *chaincfg.Params) string {
 }
 
 // CacheChartsData holds the prepopulated data that is used to draw the charts
-var CacheChartsData = make([][]dbtypes.ChartsData, 0)
+var CacheChartsData map[string]*dbtypes.ChartsData
 
 // Home is the page handler for the "/" path
 func (exp *explorerUI) Home(w http.ResponseWriter, r *http.Request) {
@@ -600,8 +600,9 @@ func (exp *explorerUI) DecodeTxPage(w http.ResponseWriter, r *http.Request) {
 
 // Charts handles the charts displays showing the various charts plotted.
 func (exp *explorerUI) Charts(w http.ResponseWriter, r *http.Request) {
-	if len(CacheChartsData) == 0 {
-		log.Errorf("Charts data missing : Queries are taking too long to run")
+	tickets, err := exp.explorerSource.GetTicketsPriceByHeight()
+	if err != nil {
+		log.Errorf("Loading the Ticket Price By Height chart data failed %v", err)
 		exp.ErrorPage(w, "Something went wrong...", "and it's not your fault, try refreshing, that usually fixes things", false)
 		return
 	}
@@ -609,11 +610,11 @@ func (exp *explorerUI) Charts(w http.ResponseWriter, r *http.Request) {
 	str, err := exp.templates.execTemplateToString("charts", struct {
 		Version string
 		NetName string
-		Data    [][]dbtypes.ChartsData
+		Data    *dbtypes.ChartsData
 	}{
 		exp.Version,
 		exp.NetName,
-		CacheChartsData,
+		tickets,
 	})
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)

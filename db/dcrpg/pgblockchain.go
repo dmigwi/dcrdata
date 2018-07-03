@@ -826,31 +826,62 @@ func (pgb *ChainDB) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgBloc
 	return err
 }
 
-// GetPgChartsData fetches the charts data that is stored in pg
-func (pgb *ChainDB) GetPgChartsData() ([][]dbtypes.ChartsData, error) {
-	var val = [][]dbtypes.ChartsData{}
+// GetTicketsPriceByHeight returns the ticket price by height chart data.
+// This is the default chart that appears at charts page.
+func (pgb *ChainDB) GetTicketsPriceByHeight() (*dbtypes.ChartsData, error) {
+	d, err := RetrieveTicketsPriceByHeight(pgb.db)
+	if err != nil {
+		return nil, fmt.Errorf("RetrieveTicketsPriceByHeight: %v", err)
+	}
+	return &dbtypes.ChartsData{Time: d.Time, ValueF: d.ValueF}, nil
+}
 
+// GetPgChartsData fetches the charts data that is stored in pg
+func (pgb *ChainDB) GetPgChartsData() (map[string]*dbtypes.ChartsData, error) {
 	tickets, err := RetrieveTicketsPriceByHeight(pgb.db)
 	if err != nil {
-		return val, fmt.Errorf("RetrieveTicketsPriceByHeight: %v", err)
+		return nil, fmt.Errorf("RetrieveTicketsPriceByHeight: %v", err)
 	}
 
-	supply, err := RetrieveCoinSupply(pgb.db)
+	supply, err := retrieveCoinSupply(pgb.db)
 	if err != nil {
-		return val, fmt.Errorf("RetrieveCoinSupply: %v", err)
+		return nil, fmt.Errorf("retrieveCoinSupply: %v", err)
 	}
 
-	size, err := RetrieveBlockTicketsPoolValue(pgb.db)
+	size, err := retrieveBlockTicketsPoolValue(pgb.db)
 	if err != nil {
-		return val, fmt.Errorf("RetrieveBlockTicketsPoolValue: %v", err)
+		return nil, fmt.Errorf("retrieveBlockTicketsPoolValue: %v", err)
 	}
 
-	txRate, err := RetrieveTxPerDay(pgb.db)
+	txRate, err := retrieveTxPerDay(pgb.db)
 	if err != nil {
-		return val, fmt.Errorf("RetrieveTxPerDay: %v", err)
+		return nil, fmt.Errorf("retrieveTxPerDay: %v", err)
 	}
 
-	return [][]dbtypes.ChartsData{tickets, supply, size, txRate}, nil
+	ticketsSpendType, err := retrieveTicketSpendTypePerBlock(pgb.db)
+	if err != nil {
+		return nil, fmt.Errorf("retrieveTicketSpendTypePerBlock: %v", err)
+	}
+
+	ticketsByOutputs, err := retrieveTicketByOutputCount(pgb.db)
+	if err != nil {
+		return nil, fmt.Errorf("retrieveTicketByOutputCount: %v", err)
+	}
+
+	var data = map[string]*dbtypes.ChartsData{
+		"avg-block-size":      {Time: size.Time, Size: size.Size},
+		"blockchain-size":     {Time: size.Time, ChainSize: size.ChainSize},
+		"tx-per-block":        {Value: size.Value, Count: size.Count},
+		"duration-btw-blocks": {Value: size.Value, ValueF: size.ValueF},
+		"tx-per-day":          txRate,
+		"pow-difficulty":      {Time: tickets.Time, SizeF: tickets.SizeF},
+		"ticket-price":        {Time: tickets.Time, ValueF: tickets.ValueF},
+		"coin-supply":         supply,
+		"ticket-spend-type":   ticketsSpendType,
+		"ticket-by-outputs":   ticketsByOutputs,
+	}
+
+	return data, nil
 }
 
 func (pgb *ChainDB) DeleteDuplicates() error {

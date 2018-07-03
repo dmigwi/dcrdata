@@ -1,31 +1,12 @@
 {{define "charts"}}
 <!DOCTYPE html>
 <html lang="en">
-
 {{template "html-head" "Decred Charts"}}
+
+<link href="/css/charts.css" rel="stylesheet">
+<script src="/js/charts.js"></script>
 <body>
     {{template "navbar" . }}
-    <style type="text/css">
-      .dygraph-legend {
-        padding: 4px !important;
-        border: 1px solid #000;
-        border-radius: 5px;
-        pointer-events: none;
-        width: fit-content;
-      }
-      .dygraph-rangesel-bgcanvas {
-        z-index: 0 !important;
-      }
-      .dygraph-rangesel-fgcanvas {
-        z-index: 0 !important;
-      }
-      .dygraph-rangesel-zoomhandle {
-        z-index: 0 !important;
-      }
-      .dygraph-axis-label {
-        z-index: 0 !important;
-      }
-    </style>
 
     <div class="container" style="font-size:0.8em;">
          <br>
@@ -33,17 +14,19 @@
         <br>
         <div id="row">
             <select id="selectBox" onchange="changeFunc();">
-                <option value="1">Ticket Price Chart</option>
-                <option value="2">Ticket Pool Size Chart</option>
-                <option value="3">Ticket Pool Value Chart</option>
-                <option value="4">Average Block Size Chart</option>
-                <option value="5">BlockChain Size Chart</option>
-                <option value="6">Number of Transactions Per Block Chart</option>
-                <option value="7">Number of Transactions Per Day Chart</option>
-                <option value="8">PoW Difficulty Chart</option>
-                <option value="9">Total Coin Supply Chart</option>
-                <option value="10">Total Fee Per Block Chart</option>
-                <option value="11">Duration Between Blocks Chart</option>
+                <option value="ticket-price">Ticket Price Chart</option>
+                <option value="ticket-pool-size">Ticket Pool Size Chart</option>
+                <option value="ticket-pool-value">Ticket Pool Value Chart</option>
+                <option value="avg-block-size">Average Block Size Chart</option>
+                <option value="blockchain-size">BlockChain Size Chart</option>
+                <option value="tx-per-block">Number of Transactions Per Block Chart</option>
+                <option value="tx-per-day">Number of Transactions Per Day Chart</option>
+                <option value="pow-difficulty">PoW Difficulty Chart</option>
+                <option value="coin-supply">Total Coin Supply Chart</option>
+                <option value="fee-per-block">Total Fee Per Block Chart</option>
+                <option value="duration-btw-blocks">Duration Between Blocks Chart</option>
+                <option value="ticket-spend-type">Tickets Spend Types Chart</option>
+                <option value="ticket-by-outputs">Tickets By Output Count Chart</option>
             </select>
         </div>
         <br>
@@ -51,202 +34,147 @@
         <div id="graphdiv" style="width:100%; height:450px; margin:0 auto;"></div>
         <br>
     </div>
-
     <script type="text/javascript">
-        function safeStartTurbolinksProgress() {
-            if(!Turbolinks.supported) { return; }
-            Turbolinks.controller.adapter.progressBar.setValue(0.5);
-            Turbolinks.controller.adapter.progressBar.show();
-        }
+        var ticketsPrice = {{.Data}};
+        var currentGraph = "ticket-price";
 
-        function safeStopTurbolinksProgress() {
-            if(!Turbolinks.supported) { return; }
-            Turbolinks.controller.adapter.progressBar.setValue(1);
-            Turbolinks.controller.adapter.progressBar.hide();
-        }
+        $body = $("body")
+
         var g = new Dygraph(
             document.getElementById("graphdiv"),
-            "1,1\n",
+            ticketsFunc(ticketsPrice),
             {
                 digitsAfterDecimal: 8,
                 showRangeSelector: true,
+                drawPoints: true,
+                labels: ["Date", "Price"],
                 legend: "follow",
-                ylabel: "Data loading...",
-                xlabel: "Data loading...",
-                title: "Charts Loading Please Wait ...",
-                labelsSeparateLines: true
+                ylabel: 'Price (Decred)',
+                xlabel: "Date",
+                title: 'Ticket Price Chart',
+                labelsSeparateLines: true,
+                plotter: Dygraph.Plotters.linePlotter,
+                legendFormatter: Formatter
             });
 
-        var data = {{.Data}};
-        var ticketsPrice = data[0];  // TicketsPriceByHeight
-        var coinSupply = data[1];    // CoinSupply
-        var blockSize = data[2];    // BlockSizeValue
-        var txPerDay = data[3];     // TxPerDay
-        var poolInfo = data[4];     // PoolValueAndSize
-        var blockFee = data[5];     // BlockFee
-
-        var tickets_price, difficulty, pool_size, pool_value, blockchain_size, block_size;
-        var tx_per_block, tx_per_day, coin_supply, fee_per_block, time_btw_blocks;
-        var currentGraph = "1";
-
-        var ticketsFunc =function (){
-            tickets_price = [];
-            difficulty = [];
-            ticketsPrice.forEach(function(n){
-                tickets_price.push([new Date (n.time*1000), n.valuef]);
-                difficulty.push([new Date(n.time*1000), n.sizef]);
-            });
-        }
-
-        var supplyFunc = function (){
-            var supply = 0;
-            coin_supply = [];
-            coinSupply.forEach(function(n){
-                coin_supply.push([new Date(n.time*1000), (isNaN(n.valuef) ? 0 : n.valuef)]);
-            });
-        }
-        
-        var sizefunc = function (){
-            var size = 0;
-            block_size = [];
-            blockchain_size = [];
-            tx_per_block = [];
-            time_btw_blocks = [];
-            blockSize.forEach(function(n){
-                block_size.push([new Date(n.time*1000), n.size]);
-                size = size + n.size
-                blockchain_size.push([new Date(n.time*1000), size]);
-                tx_per_block.push([new Date(n.time*1000), n.count]);
-
-                if (isNaN(n.value)) { return; }
-                time_btw_blocks.push([n.value, (isNaN(n.valuef) ? 0 : n.valuef)]);
-            });
-        }
-
-        var txFunc = function (){
-            tx_per_day = [];
-            txPerDay.forEach(function(n){
-                tx_per_day.push([new Date(n.timestr), n.count]);
-            });
-        }
-
-        var poolFunc = function (){
-            pool_size = [];
-            pool_value = [];
-            poolInfo.forEach(function(n){
-                pool_size.push([new Date(n.time*1000), (isNaN(n.sizef) ? 0: n.sizef)]);
-                pool_value.push([new Date(n.time*1000), (isNaN(n.valuef) ? 0: n.valuef)]);
-            });
-        }
-
-        var blockFeeFunc = function (){
-            fee_per_block = [];
-            blockFee.forEach(function(n){
-                fee_per_block.push([n.count, (isNaN(n.sizef) ? 0: n.sizef)]);
-            }); 
-        }
-
-        var drawGraph = function (data,labelsVal, isDrawPoint, yLabel, xLabel, titleName, labelsMG, labelsMG2) {
-             g.updateOptions({ 
-                    'file': data,
-                    labels: labelsVal,
-                    drawPoints: isDrawPoint,
-                    ylabel: yLabel,
-                    xlabel: xLabel,
-                    labelsKMB: labelsMG,
-                    labelsKMG2: labelsMG2,
-                    title: titleName
-                });
-                safeStopTurbolinksProgress();
+        var drawGraph = function (dygraphOptions) {
+            g.updateOptions(dygraphOptions, false);
+            $body.removeClass("loading");
             }
 
-        function resolvePromise(func) {
-        return new Promise(resolve => {
-            setTimeout(() => {
-            func()
-            resolve('resolved');
-            }, 2000);
-        });
-        }
-
-        var plotGraph = async function (value){
+        var plotGraph = function (value, data){
             switch(value){
-                case "1": // price graph
-                    if (tickets_price === undefined) { await resolvePromise(ticketsFunc); }
-                    drawGraph(tickets_price, ["Date", "Price"], true, 'Price (Decred)', 'Date', 'Ticket Price Chart', false, false)
+                case "ticket-price": // price graph
+                    d = ticketsFunc(data)
+                    gOptions = mapDygraphOptions(d, ["Date", "Price"], true, 'Price (Decred)', 'Date', 'Ticket Price Chart', false, false)
+                    drawGraph(gOptions)
                 break;
 
-                case "2": // pool size graph
-                    if (pool_size === undefined) { await resolvePromise(poolFunc); }
-                    drawGraph(pool_size, ["Date", "Ticket Pool Size"], false, 'Ticket Pool Size', 'Date', 
+                case "ticket-pool-size": // pool size graph
+                     d = poolSizeFunc(data)
+                    gOptions = mapDygraphOptions(d, ["Date", "Ticket Pool Size"], false, 'Ticket Pool Size', 'Date', 
                     'Ticket Pool Size Chart', true, false)
+                    drawGraph(gOptions)
                 break;
                 
-                case "3": // pool value graph
-                    if (pool_value === undefined) { await resolvePromise(poolFunc); }
-                    drawGraph(pool_value, ["Date", "Ticket Pool Value"], true, 'Ticket Pool Value','Date', 
+                case "ticket-pool-value": // pool value graph
+                     d = poolValueFunc(data)
+                    gOptions = mapDygraphOptions(d, ["Date", "Ticket Pool Value"], true, 'Ticket Pool Value','Date', 
                     'Ticket Pool Value Chart', true, false)
+                    drawGraph(gOptions)
                 break;
                 
-                case "4": // block size graph
-                    if (block_size === undefined) { await resolvePromise(sizefunc);}
-                    drawGraph(block_size, ["Date", "Block Size"], false, 'Block Size', 'Date','Average Block Size Chart', true, false)
+                case "avg-block-size": // block size graph
+                     d = blockSizeFunc(data)
+                    gOptions = mapDygraphOptions(d, ["Date", "Block Size"], false, 'Block Size', 'Date','Average Block Size Chart', true, false)
+                    drawGraph(gOptions)
                 break;
 
-                case "5": // blockchain size graph
-                    if (blockchain_size === undefined) { await resolvePromise(sizefunc); }
-                    drawGraph(blockchain_size, ["Date", "BlockChain Size"], true, 'BlockChain Size', 'Date', 'BlockChain Size Chart', false, true)
+                case "blockchain-size": // blockchain size graph
+                     d = blockChainSizeFunc(data)
+                    gOptions = mapDygraphOptions(d, ["Date", "BlockChain Size"], true, 'BlockChain Size', 'Date', 'BlockChain Size Chart', false, true)
+                    drawGraph(gOptions)
                 break;
 
-                case "6":  // tx per block graph
-                    if (tx_per_block === undefined) { await resolvePromise(sizefunc); }
-                    drawGraph(tx_per_block, ["Date", "Number of Transactions Per Block"], false, 'Number of Transactions', 'Date',
+                case "tx-per-block":  // tx per block graph
+                     d = txPerBlockFunc(data)
+                    gOptions = mapDygraphOptions(d, ["Date", "Number of Transactions Per Block"], false, 'Number of Transactions', 'Date',
                      'Number of Transactions Per Block Chart', false, false)
+                     drawGraph(gOptions)
                 break;
 
-                case "7": // tx per day graph
-                    if (tx_per_day === undefined) { await resolvePromise(txFunc);}
-                    drawGraph(tx_per_day, ["Date", "Number of Transactions Per Day"], true, 'Number of Transactions', 'Date', 
+                case "tx-per-day": // tx per day graph
+                     d = txPerDayFunc(data)
+                    gOptions = mapDygraphOptions(d, ["Date", "Number of Transactions Per Day"], true, 'Number of Transactions', 'Date', 
                     'Number of Transactions Per Day Chart', true, false)
+                    drawGraph(gOptions)
                 break;
 
-                case "8": // difficulty graph
-                    if (difficulty === undefined) { await resolvePromise(ticketsFunc);}
-                    drawGraph(difficulty, ["Date", "Difficulty"], true, 'Difficulty', 'Date', 'PoW Difficulty Chart', true, false)
+                case "pow-difficulty": // difficulty graph
+                     d = difficultyFunc(data)
+                    gOptions = mapDygraphOptions(d, ["Date", "Difficulty"], true, 'Difficulty', 'Date', 'PoW Difficulty Chart', true, false)
+                    drawGraph(gOptions)
                 break;
                 
-                case "9": // supply graph
-                    if (coin_supply === undefined ){ await resolvePromise(supplyFunc);}
-                    drawGraph(coin_supply, ["Date", "Coin Supply"], true, 'Coin Supply', 'Date', 'Total Coin Supply Chart', true, false)
+                case "coin-supply": // supply graph
+                     d = supplyFunc(data)
+                    gOptions = mapDygraphOptions(d, ["Date", "Coin Supply"], true, 'Coin Supply', 'Date', 'Total Coin Supply Chart', true, false)
+                    drawGraph(gOptions)
                 break;
 
-                case "10": // block fee graph
-                    if (fee_per_block === undefined) { await resolvePromise(blockFeeFunc);}
-                    drawGraph(fee_per_block, ["Block Height", "Total Fee"], false, 'Total Fee (DCR)', 'Block Height', 
+                case "fee-per-block": // block fee graph
+                     d = blockFeeFunc(data)
+                    gOptions = mapDygraphOptions(d, ["Block Height", "Total Fee"], false, 'Total Fee (DCR)', 'Block Height', 
                     'Total Fee Per Block Chart', true, false)
+                    drawGraph(gOptions)
                 break;
 
-                case "11": // Duration between blocks graph
-                    if (time_btw_blocks === undefined) { await resolvePromise(sizefunc);}
-                    drawGraph(time_btw_blocks, ["Block Height", "Duration Between Block"], false, 'Duration Between Block (Seconds)', 'Block Height',
-                    'Duration Between Blocks Chart', true, false)
+                case "duration-btw-blocks": // Duration between blocks graph
+                     d = timeBtwBlocksFunc(data)
+                    gOptions = mapDygraphOptions(d, ["Block Height", "Duration Between Block"], false, 'Duration Between Block (Seconds)', 'Block Height',
+                    'Duration Between Blocks Chart', false, false)
+                    drawGraph(gOptions)
+                break;
+
+                case "ticket-spend-type": // Tickets spendtype per block graph
+                     d = ticketSpendTypeFunc(data)
+                    gOptions = mapDygraphOptions(d, ["Block Height", "Unspent", "Revoked", "Voted"], false, 'Tickets Spend Type', 'Block Height',
+                    'Tickets Spend Types Chart', false, false)
+                    gOptions.fillGraph = true
+                    gOptions.stackedGraph = true
+                    gOptions.colors = ['orange', 'red', 'rgb(0,153,0)']
+                    gOptions.plotter = barchartPlotter
+                    drawGraph(gOptions)
+                break;
+
+                case "ticket-by-outputs": // Tickets by output count graph
+                     d = ticketByOutputCountFunc(data)
+                    gOptions = mapDygraphOptions(d, ["Block Height", "Solo", "Pooled", "TxSplit"], false, 'Tickets By Outputs', 'Block Height',
+                    'Tickets By Output Count Chart', false, false)
+                    gOptions.fillGraph = true
+                    gOptions.stackedGraph = true
+                    gOptions.colors = ['orange', 'rgb(0,153,0)', '#0066cc']
+                    gOptions.plotter = barchartPlotter
+                    drawGraph(gOptions)
                 break;
             }
         }
-        plotGraph("1")
 
         var changeFunc = function() {
-            safeStartTurbolinksProgress();
+            $body.addClass("loading");
             var selectBox = document.getElementById("selectBox");
             var selectedValue = selectBox.options[selectBox.selectedIndex].value;
             if (currentGraph != selectedValue) {
-                plotGraph(selectedValue);
+                getAPIData(selectedValue, plotGraph)
                 currentGraph = selectedValue;
+            } else {
+                $body.removeClass("loading");
             }
         }
     </script>
 
     {{ template "footer" . }}
+    <div class="modal"></div>
 </body>
 </html>
 {{end}}
