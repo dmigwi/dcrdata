@@ -22,6 +22,17 @@ import (
 	"github.com/lib/pq"
 )
 
+// outputCountType defines the modes of the output count chart data.
+// outputCountByAllBlocks defines count per block i.e. solo and pooled tickets
+// count per block. outputCountByTicketPoolWindow defines the output count per
+// given ticket price window
+type outputCountType int
+
+const (
+	outputCountByAllBlocks outputCountType = iota
+	outputCountByTicketPoolWindow
+)
+
 func ExistsIndex(db *sql.DB, indexName string) (exists bool, err error) {
 	err = db.QueryRow(internal.IndexExists, indexName, "public").Scan(&exists)
 	if err == sql.ErrNoRows {
@@ -1524,9 +1535,20 @@ func retrieveTicketSpendTypePerBlock(db *sql.DB) (*dbtypes.ChartsData, error) {
 	return items, nil
 }
 
-func retrieveTicketByOutputCount(db *sql.DB) (*dbtypes.ChartsData, error) {
+func retrieveTicketByOutputCount(db *sql.DB, dataType outputCountType) (*dbtypes.ChartsData, error) {
+	var query = ""
+
+	switch dataType {
+	case outputCountByAllBlocks:
+		query = internal.SelectTicketsOutputCountByAllBlocks
+	case outputCountByTicketPoolWindow:
+		query = internal.SelectTicketsOutputCountByTPWindow
+	default:
+		return nil, fmt.Errorf("unknown output count type '%v'", dataType)
+	}
+
 	var items = new(dbtypes.ChartsData)
-	var rows, err = db.Query(internal.SelectTicketsByOutputCount)
+	var rows, err = db.Query(query)
 	if err != nil {
 		return nil, err
 	}

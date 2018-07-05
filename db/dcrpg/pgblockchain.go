@@ -863,22 +863,28 @@ func (pgb *ChainDB) GetPgChartsData() (map[string]*dbtypes.ChartsData, error) {
 		return nil, fmt.Errorf("retrieveTicketSpendTypePerBlock: %v", err)
 	}
 
-	ticketsByOutputs, err := retrieveTicketByOutputCount(pgb.db)
+	ticketsByOutputsAllBlocks, err := retrieveTicketByOutputCount(pgb.db, outputCountByAllBlocks)
 	if err != nil {
-		return nil, fmt.Errorf("retrieveTicketByOutputCount: %v", err)
+		return nil, fmt.Errorf("retrieveTicketByOutputCount by All Blocks: %v", err)
+	}
+
+	ticketsByOutputsTPWindow, err := retrieveTicketByOutputCount(pgb.db, outputCountByTicketPoolWindow)
+	if err != nil {
+		return nil, fmt.Errorf("retrieveTicketByOutputCount by All TP window: %v", err)
 	}
 
 	var data = map[string]*dbtypes.ChartsData{
-		"avg-block-size":      {Time: size.Time, Size: size.Size},
-		"blockchain-size":     {Time: size.Time, ChainSize: size.ChainSize},
-		"tx-per-block":        {Value: size.Value, Count: size.Count},
-		"duration-btw-blocks": {Value: size.Value, ValueF: size.ValueF},
-		"tx-per-day":          txRate,
-		"pow-difficulty":      {Time: tickets.Time, SizeF: tickets.SizeF},
-		"ticket-price":        {Time: tickets.Time, ValueF: tickets.ValueF},
-		"coin-supply":         supply,
-		"ticket-spend-type":   ticketsSpendType,
-		"ticket-by-outputs":   ticketsByOutputs,
+		"avg-block-size":            {Time: size.Time, Size: size.Size},
+		"blockchain-size":           {Time: size.Time, ChainSize: size.ChainSize},
+		"tx-per-block":              {Value: size.Value, Count: size.Count},
+		"duration-btw-blocks":       {Value: size.Value, ValueF: size.ValueF},
+		"tx-per-day":                txRate,
+		"pow-difficulty":            {Time: tickets.Time, SizeF: tickets.SizeF},
+		"ticket-price":              {Time: tickets.Time, ValueF: tickets.ValueF},
+		"coin-supply":               supply,
+		"ticket-spend-type":         ticketsSpendType,
+		"ticket-by-outputs-blocks":  ticketsByOutputsAllBlocks,
+		"ticket-by-outputs-windows": ticketsByOutputsTPWindow,
 	}
 
 	return data, nil

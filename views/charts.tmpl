@@ -22,8 +22,32 @@
                     <option value="fee-per-block">Total Fee Per Block Chart</option>
                     <option value="duration-btw-blocks">Duration Between Blocks Chart</option>
                     <option value="ticket-spend-type">Tickets Spend Types Chart</option>
-                    <option value="ticket-by-outputs">Tickets By Output Count Chart</option>
+                    <option value="ticket-by-outputs-windows">Tickets By Output Count Chart</option>
                 </select>
+               
+               <div class="row" style="float: right;">
+                    <div class="block-chart-btn-display">
+                        <label>Zoom :</label>
+                        <div class="btn-group" data-toggle="buttons" data-target="charts.zoom" data-action="click->charts#onZoom">
+                            <input id="chart-zoom" type="button" class="btn btn_sm" value="Day" name="288">
+                            <input id="chart-zoom" type="button" class="btn btn_sm" value="Week" name="2016">
+                            <input id="chart-zoom" type="button" class="btn btn_sm" value="Month" name="8760">
+                            <input id="chart-zoom" type="button" class="btn btn_sm" value="Year" name="105120">
+                            <input id="chart-zoom" type="button" class="btn btn_sm btn-active" value="All Blocks" name="0">
+                        </div>
+                    </div>
+                    <p>&nbsp;&nbsp;&nbsp;&nbsp;</p>
+                    <div class="chart-btn-display">
+                        <label>Group :</label>
+                        <div class="btn-group" data-toggle="buttons" data-target="charts.groupings" data-action="click->charts#onGrouping">
+                            <input id="chart-group" type="button" class="btn btn_sm btn-active"
+                                value="Ticket Price Windows" name="ticket-by-outputs-windows">
+                            <input id="chart-group" type="button" class="btn btn_sm" value="Blocks"
+                                name="ticket-by-outputs-blocks">
+                        </div>
+                    </div>
+                </div>
+     
             </div>
             <br><br>
             <div id="graphdiv" 
@@ -35,6 +59,11 @@
 
     <script type="text/javascript">
         var ticketsPrice = {{.Data}};
+
+        $('input').on('click', function(){
+            $('input#'+this.id).removeClass('btn-active');
+            $(this).toggleClass('btn-active');
+        });
     </script>
 
     {{ template "footer" . }}

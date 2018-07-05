@@ -73,11 +73,18 @@ const (
 		size, spent, sent, fees, num_vin, vin_db_ids, num_vout, vout_db_ids 
 		FROM transactions WHERE tx_hash = $1;`
 
-	SelectTicketsByOutputCount = `SELECT block_height,
+	SelectTicketsOutputCountByAllBlocks = `SELECT block_height,
 		SUM(CASE WHEN num_vout = 3 THEN 1 ELSE 0 END) as solo,
 		SUM(CASE WHEN num_vout = 5 THEN 1 ELSE 0 END) as pooled
 		FROM transactions WHERE tx_type = 1 GROUP BY block_height
 		ORDER BY block_height;`
+
+	SelectTicketsOutputCountByTPWindow = `SELECT
+		floor(block_height/144) as count,
+		SUM(CASE WHEN num_vout = 3 THEN 1 ELSE 0 END) as solo,
+		SUM(CASE WHEN num_vout = 5 THEN 1 ELSE 0 END) as pooled
+		FROM transactions WHERE tx_type = 1
+		GROUP BY count ORDER BY count;`
 
 	SelectRegularTxByHash = `SELECT id, block_hash, block_index FROM transactions WHERE tx_hash = $1 and tree=0;`
 	SelectStakeTxByHash   = `SELECT id, block_hash, block_index FROM transactions WHERE tx_hash = $1 and tree=1;`
