@@ -321,11 +321,9 @@ type ChartsData struct {
 	ValueF    []float64 `json:"valuef,omitempty"`
 	Unspent   []uint64  `json:"unspent,omitempty"`
 	Revoked   []uint64  `json:"revoked,omitempty"`
-	Voted     []uint64  `json:"voted,omitempty"`
 	Height    []uint64  `json:"height,omitempty"`
 	Pooled    []uint64  `json:"pooled,omitempty"`
 	Solo      []uint64  `json:"solo,omitempty"`
-	TxSplit   []uint64  `json:"txsplit,omitempty"`
 }
 
 // ScriptPubKeyData is part of the result of decodescript(ScriptPubKeyHex)

@@ -75,8 +75,7 @@ const (
 
 	SelectTicketsByOutputCount = `SELECT block_height,
 		SUM(CASE WHEN num_vout = 3 THEN 1 ELSE 0 END) as solo,
-		SUM(CASE WHEN num_vout = 5 THEN 1 ELSE 0 END) as pooled,
-		SUM(CASE WHEN num_vout > 5 THEN 1 ELSE 0 END) as txsplit
+		SUM(CASE WHEN num_vout = 5 THEN 1 ELSE 0 END) as pooled
 		FROM transactions WHERE tx_type = 1 GROUP BY block_height
 		ORDER BY block_height;`
 

@@ -2,175 +2,39 @@
 <!DOCTYPE html>
 <html lang="en">
 {{template "html-head" "Decred Charts"}}
-
-<link href="/css/charts.css" rel="stylesheet">
-<script src="/js/charts.js"></script>
 <body>
     {{template "navbar" . }}
 
     <div class="container" style="font-size:0.8em;">
-         <br>
-        <br>
-        <br>
-        <div id="row">
-            <select id="selectBox" onchange="changeFunc();">
-                <option value="ticket-price">Ticket Price Chart</option>
-                <option value="ticket-pool-size">Ticket Pool Size Chart</option>
-                <option value="ticket-pool-value">Ticket Pool Value Chart</option>
-                <option value="avg-block-size">Average Block Size Chart</option>
-                <option value="blockchain-size">BlockChain Size Chart</option>
-                <option value="tx-per-block">Number of Transactions Per Block Chart</option>
-                <option value="tx-per-day">Number of Transactions Per Day Chart</option>
-                <option value="pow-difficulty">PoW Difficulty Chart</option>
-                <option value="coin-supply">Total Coin Supply Chart</option>
-                <option value="fee-per-block">Total Fee Per Block Chart</option>
-                <option value="duration-btw-blocks">Duration Between Blocks Chart</option>
-                <option value="ticket-spend-type">Tickets Spend Types Chart</option>
-                <option value="ticket-by-outputs">Tickets By Output Count Chart</option>
-            </select>
+        <div data-controller="charts">
+            <br><br>
+            <div id="row">
+                <select id="selectBox" data-target="charts.options" data-action="charts#onChange">
+                    <option value="ticket-price">Ticket Price Chart</option>
+                    <option value="ticket-pool-size">Ticket Pool Size Chart</option>
+                    <option value="ticket-pool-value">Ticket Pool Value Chart</option>
+                    <option value="avg-block-size">Average Block Size Chart</option>
+                    <option value="blockchain-size">BlockChain Size Chart</option>
+                    <option value="tx-per-block">Number of Transactions Per Block Chart</option>
+                    <option value="tx-per-day">Number of Transactions Per Day Chart</option>
+                    <option value="pow-difficulty">PoW Difficulty Chart</option>
+                    <option value="coin-supply">Total Coin Supply Chart</option>
+                    <option value="fee-per-block">Total Fee Per Block Chart</option>
+                    <option value="duration-btw-blocks">Duration Between Blocks Chart</option>
+                    <option value="ticket-spend-type">Tickets Spend Types Chart</option>
+                    <option value="ticket-by-outputs">Tickets By Output Count Chart</option>
+                </select>
+            </div>
+            <br><br>
+            <div id="graphdiv" 
+                data-target="chartsview" 
+                style="width:100%; height:450px; margin:0 auto;">
+            </div>
         </div>
-        <br>
-        <br>
-        <div id="graphdiv" style="width:100%; height:450px; margin:0 auto;"></div>
-        <br>
     </div>
+
     <script type="text/javascript">
         var ticketsPrice = {{.Data}};
-        var currentGraph = "ticket-price";
-
-        $body = $("body")
-
-        var g = new Dygraph(
-            document.getElementById("graphdiv"),
-            ticketsFunc(ticketsPrice),
-            {
-                digitsAfterDecimal: 8,
-                showRangeSelector: true,
-                drawPoints: true,
-                labels: ["Date", "Price"],
-                legend: "follow",
-                ylabel: 'Price (Decred)',
-                xlabel: "Date",
-                title: 'Ticket Price Chart',
-                labelsSeparateLines: true,
-                plotter: Dygraph.Plotters.linePlotter,
-                legendFormatter: Formatter
-            });
-
-        var drawGraph = function (dygraphOptions) {
-            g.updateOptions(dygraphOptions, false);
-            $body.removeClass("loading");
-            }
-
-        var plotGraph = function (value, data){
-            switch(value){
-                case "ticket-price": // price graph
-                    d = ticketsFunc(data)
-                    gOptions = mapDygraphOptions(d, ["Date", "Price"], true, 'Price (Decred)', 'Date', 'Ticket Price Chart', false, false)
-                    drawGraph(gOptions)
-                break;
-
-                case "ticket-pool-size": // pool size graph
-                     d = poolSizeFunc(data)
-                    gOptions = mapDygraphOptions(d, ["Date", "Ticket Pool Size"], false, 'Ticket Pool Size', 'Date', 
-                    'Ticket Pool Size Chart', true, false)
-                    drawGraph(gOptions)
-                break;
-                
-                case "ticket-pool-value": // pool value graph
-                     d = poolValueFunc(data)
-                    gOptions = mapDygraphOptions(d, ["Date", "Ticket Pool Value"], true, 'Ticket Pool Value','Date', 
-                    'Ticket Pool Value Chart', true, false)
-                    drawGraph(gOptions)
-                break;
-                
-                case "avg-block-size": // block size graph
-                     d = blockSizeFunc(data)
-                    gOptions = mapDygraphOptions(d, ["Date", "Block Size"], false, 'Block Size', 'Date','Average Block Size Chart', true, false)
-                    drawGraph(gOptions)
-                break;
-
-                case "blockchain-size": // blockchain size graph
-                     d = blockChainSizeFunc(data)
-                    gOptions = mapDygraphOptions(d, ["Date", "BlockChain Size"], true, 'BlockChain Size', 'Date', 'BlockChain Size Chart', false, true)
-                    drawGraph(gOptions)
-                break;
-
-                case "tx-per-block":  // tx per block graph
-                     d = txPerBlockFunc(data)
-                    gOptions = mapDygraphOptions(d, ["Date", "Number of Transactions Per Block"], false, 'Number of Transactions', 'Date',
-                     'Number of Transactions Per Block Chart', false, false)
-                     drawGraph(gOptions)
-                break;
-
-                case "tx-per-day": // tx per day graph
-                     d = txPerDayFunc(data)
-                    gOptions = mapDygraphOptions(d, ["Date", "Number of Transactions Per Day"], true, 'Number of Transactions', 'Date', 
-                    'Number of Transactions Per Day Chart', true, false)
-                    drawGraph(gOptions)
-                break;
-
-                case "pow-difficulty": // difficulty graph
-                     d = difficultyFunc(data)
-                    gOptions = mapDygraphOptions(d, ["Date", "Difficulty"], true, 'Difficulty', 'Date', 'PoW Difficulty Chart', true, false)
-                    drawGraph(gOptions)
-                break;
-                
-                case "coin-supply": // supply graph
-                     d = supplyFunc(data)
-                    gOptions = mapDygraphOptions(d, ["Date", "Coin Supply"], true, 'Coin Supply', 'Date', 'Total Coin Supply Chart', true, false)
-                    drawGraph(gOptions)
-                break;
-
-                case "fee-per-block": // block fee graph
-                     d = blockFeeFunc(data)
-                    gOptions = mapDygraphOptions(d, ["Block Height", "Total Fee"], false, 'Total Fee (DCR)', 'Block Height', 
-                    'Total Fee Per Block Chart', true, false)
-                    drawGraph(gOptions)
-                break;
-
-                case "duration-btw-blocks": // Duration between blocks graph
-                     d = timeBtwBlocksFunc(data)
-                    gOptions = mapDygraphOptions(d, ["Block Height", "Duration Between Block"], false, 'Duration Between Block (Seconds)', 'Block Height',
-                    'Duration Between Blocks Chart', false, false)
-                    drawGraph(gOptions)
-                break;
-
-                case "ticket-spend-type": // Tickets spendtype per block graph
-                     d = ticketSpendTypeFunc(data)
-                    gOptions = mapDygraphOptions(d, ["Block Height", "Unspent", "Revoked", "Voted"], false, 'Tickets Spend Type', 'Block Height',
-                    'Tickets Spend Types Chart', false, false)
-                    gOptions.fillGraph = true
-                    gOptions.stackedGraph = true
-                    gOptions.colors = ['orange', 'red', 'rgb(0,153,0)']
-                    gOptions.plotter = barchartPlotter
-                    drawGraph(gOptions)
-                break;
-
-                case "ticket-by-outputs": // Tickets by output count graph
-                     d = ticketByOutputCountFunc(data)
-                    gOptions = mapDygraphOptions(d, ["Block Height", "Solo", "Pooled", "TxSplit"], false, 'Tickets By Outputs', 'Block Height',
-                    'Tickets By Output Count Chart', false, false)
-                    gOptions.fillGraph = true
-                    gOptions.stackedGraph = true
-                    gOptions.colors = ['orange', 'rgb(0,153,0)', '#0066cc']
-                    gOptions.plotter = barchartPlotter
-                    drawGraph(gOptions)
-                break;
-            }
-        }
-
-        var changeFunc = function() {
-            $body.addClass("loading");
-            var selectBox = document.getElementById("selectBox");
-            var selectedValue = selectBox.options[selectBox.selectedIndex].value;
-            if (currentGraph != selectedValue) {
-                getAPIData(selectedValue, plotGraph)
-                currentGraph = selectedValue;
-            } else {
-                $body.removeClass("loading");
-            }
-        }
     </script>
 
     {{ template "footer" . }}

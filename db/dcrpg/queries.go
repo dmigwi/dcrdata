@@ -1510,9 +1510,9 @@ func retrieveTicketSpendTypePerBlock(db *sql.DB) (*dbtypes.ChartsData, error) {
 	defer closeRows(rows)
 
 	for rows.Next() {
-		var height, unspent, revoked, voted uint64
+		var height, unspent, revoked uint64
 
-		err = rows.Scan(&height, &unspent, &revoked, &voted)
+		err = rows.Scan(&height, &unspent, &revoked)
 		if err != nil {
 			return nil, err
 		}
@@ -1520,7 +1520,6 @@ func retrieveTicketSpendTypePerBlock(db *sql.DB) (*dbtypes.ChartsData, error) {
 		items.Height = append(items.Height, height)
 		items.Unspent = append(items.Unspent, unspent)
 		items.Revoked = append(items.Revoked, revoked)
-		items.Voted = append(items.Voted, voted)
 	}
 	return items, nil
 }
@@ -1535,9 +1534,9 @@ func retrieveTicketByOutputCount(db *sql.DB) (*dbtypes.ChartsData, error) {
 	defer closeRows(rows)
 
 	for rows.Next() {
-		var height, solo, pooled, txsplit uint64
+		var height, solo, pooled uint64
 
-		err = rows.Scan(&height, &solo, &pooled, &txsplit)
+		err = rows.Scan(&height, &solo, &pooled)
 		if err != nil {
 			return nil, err
 		}
@@ -1545,7 +1544,6 @@ func retrieveTicketByOutputCount(db *sql.DB) (*dbtypes.ChartsData, error) {
 		items.Height = append(items.Height, height)
 		items.Solo = append(items.Solo, solo)
 		items.Pooled = append(items.Pooled, pooled)
-		items.TxSplit = append(items.TxSplit, txsplit)
 	}
 	return items, nil
 }
