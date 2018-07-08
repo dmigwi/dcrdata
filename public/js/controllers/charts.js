@@ -10,7 +10,7 @@
 
     function difficultyFunc(gData){
         d = [];
-        gData.time.forEach((n, i) => { d.push([new Date(n*1000), gData.sizef[i]])});
+        gData.time.forEach((n, i) => { d.push([new Date(n*1000), gData.difficulty[i]])});
         return d
     }
 

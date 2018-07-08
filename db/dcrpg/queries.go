@@ -413,8 +413,7 @@ func SetSpendingForVinDbIDs(db *sql.DB, vinDbIDs []uint64) ([]int64, int64, erro
 		var prevOutTree, txTree int8
 		var valueIn, blockTime int64
 		var isValid bool
-		var id uint64
-		err = vinGetStmt.QueryRow(vinDbID).Scan(&id,
+		err = vinGetStmt.QueryRow(vinDbID).Scan(
 			&txHash, &txVinInd, &txTree, &isValid, &blockTime,
 			&prevOutHash, &prevOutVoutInd, &prevOutTree, &valueIn)
 		if err != nil {
@@ -457,9 +456,8 @@ func SetSpendingForVinDbID(db *sql.DB, vinDbID uint64) (int64, error) {
 	var prevOutTree, txTree int8
 	var isValid bool
 	var valueIn, blockTime int64
-	var id uint64
 	err = dbtx.QueryRow(internal.SelectAllVinInfoByID, vinDbID).
-		Scan(&id, &txHash, &txVinInd, &txTree, &isValid, &blockTime,
+		Scan(&txHash, &txVinInd, &txTree, &isValid, &blockTime,
 			&prevOutHash, &prevOutVoutInd, &prevOutTree, &valueIn)
 	if err != nil {
 		return 0, fmt.Errorf(`SetSpendingByVinID: %v + %v `+
@@ -939,10 +937,10 @@ func RetrieveFundingOutpointByVinID(db *sql.DB, vinDbID uint64) (tx string, inde
 
 func RetrieveVinByID(db *sql.DB, vinDbID uint64) (prevOutHash string, prevOutVoutInd uint32,
 	prevOutTree int8, txHash string, txVinInd uint32, txTree int8, valueIn int64, err error) {
-	var id, blockTime uint64
+	var blockTime uint64
 	var isValid bool
 	err = db.QueryRow(internal.SelectAllVinInfoByID, vinDbID).
-		Scan(&id, &txHash, &txVinInd, &txTree, &isValid, &blockTime,
+		Scan(&txHash, &txVinInd, &txTree, &isValid, &blockTime,
 			&prevOutHash, &prevOutVoutInd, &prevOutTree, &valueIn)
 	return
 }
@@ -1129,7 +1127,7 @@ func RetrieveStakeTxByHash(db *sql.DB, txHash string) (id uint64, blockHash stri
 	return
 }
 
-func RetrieveTxsByBlockHash(db *sql.DB, blockHash string) (ids []uint64, txs []string, blockInds []uint32, trees []int8, err error) {
+func RetrieveTxsByBlockHash(db *sql.DB, blockHash string) (ids []uint64, txs []string, blockInds []uint32, trees []int8, blockTimes []uint64, err error) {
 	rows, err := db.Query(internal.SelectTxsByBlockHash, blockHash)
 	if err != nil {
 		return
@@ -1141,11 +1139,11 @@ func RetrieveTxsByBlockHash(db *sql.DB, blockHash string) (ids []uint64, txs []s
 	}()
 
 	for rows.Next() {
-		var id uint64
+		var id, blockTime uint64
 		var tx string
 		var bind uint32
 		var tree int8
-		err = rows.Scan(&id, &tx, &bind, &tree)
+		err = rows.Scan(&id, &tx, &bind, &tree, &blockTime)
 		if err != nil {
 			break
 		}
@@ -1154,6 +1152,7 @@ func RetrieveTxsByBlockHash(db *sql.DB, blockHash string) (ids []uint64, txs []s
 		txs = append(txs, tx)
 		blockInds = append(blockInds, bind)
 		trees = append(trees, tree)
+		blockTimes = append(blockTimes, blockTime)
 	}
 
 	return
@@ -1352,18 +1351,17 @@ func UpdateLastBlock(db *sql.DB, blockDbID uint64, isValid bool) error {
 	return nil
 }
 
-// UpdateLastVins updates the is_valid column of the block specified by the row
-// id for the blocks table.
+// UpdateLastVins updates the is_valid column using block hash.
 func UpdateLastVins(db *sql.DB, blockHash string, isValid bool) error {
-	_, txs, _, _, err := RetrieveTxsByBlockHash(db, blockHash)
+	_, txs, _, trees, timestamps, err := RetrieveTxsByBlockHash(db, blockHash)
 	if err != nil {
 		return err
 	}
 
 	var numRows = 0
-	for _, txHash := range txs {
+	for i, txHash := range txs {
 		n, err := sqlExec(db, internal.SetIsValidByTxHash,
-			"failed to update last vins tx validity: ", isValid, txHash)
+			"failed to update last vins tx validity: ", isValid, txHash, timestamps[i], trees[i])
 		if err != nil {
 			return err
 		}
@@ -1396,12 +1394,12 @@ func closeRows(rows *sql.Rows) {
 	}
 }
 
-// RetrieveTicketsPriceByHeight fetches the ticket price and its timestamp that are used
-// to display the ticket price variation on ticket price chart. This data is fetched at an interval
-// of 144 blocks.
-func RetrieveTicketsPriceByHeight(db *sql.DB) (*dbtypes.ChartsData, error) {
+// RetrieveTicketsPriceByHeight fetches the ticket price and its timestamp
+// that are used to display the ticket price variation on ticket price chart.
+// This data is fetched at an interval of chaincfg.Params.StakeDiffWindowSize
+func RetrieveTicketsPriceByHeight(db *sql.DB, val int64) (*dbtypes.ChartsData, error) {
 	var items = new(dbtypes.ChartsData)
-	rows, err := db.Query(internal.SelectBlocksTicketsPrice)
+	rows, err := db.Query(internal.SelectBlocksTicketsPrice, val)
 	if err != nil {
 		return nil, err
 	}
@@ -1418,7 +1416,7 @@ func RetrieveTicketsPriceByHeight(db *sql.DB) (*dbtypes.ChartsData, error) {
 
 		items.Time = append(items.Time, timestamp)
 		items.ValueF = append(items.ValueF, float64(price)/100000000)
-		items.SizeF = append(items.SizeF, difficulty)
+		items.Difficulty = append(items.Difficulty, difficulty)
 	}
 
 	return items, nil

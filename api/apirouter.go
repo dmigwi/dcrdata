@@ -178,7 +178,8 @@ func NewAPIRouter(app *appContext, userRealIP bool) apiMux {
 	})
 
 	mux.Route("/chart", func(r chi.Router) {
-		r.Get("/", http.NotFound)
+		// Return default chart data (ticket price)
+		r.Get("/", app.getTicketPriceChartData)
 		r.With(m.ChartTypeCtx).Get("/{chart-type}", app.getChartTypeData)
 	})
 

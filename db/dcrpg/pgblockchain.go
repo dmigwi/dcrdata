@@ -332,7 +332,7 @@ func (pgb *ChainDB) SpendingTransaction(fundingTxID string,
 // BlockTransactions retrieves all transactions in the specified block, their
 // indexes in the block, their tree, and an error value.
 func (pgb *ChainDB) BlockTransactions(blockHash string) ([]string, []uint32, []int8, error) {
-	_, blockTransactions, blockInds, trees, err := RetrieveTxsByBlockHash(pgb.db, blockHash)
+	_, blockTransactions, blockInds, trees, _, err := RetrieveTxsByBlockHash(pgb.db, blockHash)
 	return blockTransactions, blockInds, trees, err
 }
 
@@ -829,7 +829,7 @@ func (pgb *ChainDB) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgBloc
 // GetTicketsPriceByHeight returns the ticket price by height chart data.
 // This is the default chart that appears at charts page.
 func (pgb *ChainDB) GetTicketsPriceByHeight() (*dbtypes.ChartsData, error) {
-	d, err := RetrieveTicketsPriceByHeight(pgb.db)
+	d, err := RetrieveTicketsPriceByHeight(pgb.db, pgb.chainParams.StakeDiffWindowSize)
 	if err != nil {
 		return nil, fmt.Errorf("RetrieveTicketsPriceByHeight: %v", err)
 	}
@@ -838,7 +838,7 @@ func (pgb *ChainDB) GetTicketsPriceByHeight() (*dbtypes.ChartsData, error) {
 
 // GetPgChartsData fetches the charts data that is stored in pg
 func (pgb *ChainDB) GetPgChartsData() (map[string]*dbtypes.ChartsData, error) {
-	tickets, err := RetrieveTicketsPriceByHeight(pgb.db)
+	tickets, err := RetrieveTicketsPriceByHeight(pgb.db, pgb.chainParams.StakeDiffWindowSize)
 	if err != nil {
 		return nil, fmt.Errorf("RetrieveTicketsPriceByHeight: %v", err)
 	}
@@ -879,7 +879,7 @@ func (pgb *ChainDB) GetPgChartsData() (map[string]*dbtypes.ChartsData, error) {
 		"tx-per-block":              {Value: size.Value, Count: size.Count},
 		"duration-btw-blocks":       {Value: size.Value, ValueF: size.ValueF},
 		"tx-per-day":                txRate,
-		"pow-difficulty":            {Time: tickets.Time, SizeF: tickets.SizeF},
+		"pow-difficulty":            {Time: tickets.Time, Difficulty: tickets.Difficulty},
 		"ticket-price":              {Time: tickets.Time, ValueF: tickets.ValueF},
 		"coin-supply":               supply,
 		"ticket-spend-type":         ticketsSpendType,
@@ -1359,6 +1359,12 @@ func (pgb *ChainDB) StoreBlock(msgBlock *wire.MsgBlock, winningTickets []string,
 		err = UpdateBlockNext(pgb.db, lastBlockDbID, dbBlock.Hash)
 		if err != nil {
 			log.Error("UpdateBlockNext:", err)
+			return
+		}
+
+		err = UpdateLastVins(pgb.db, lastBlockHash.String(), lastIsValid)
+		if err != nil {
+			log.Error("UpdateLastVins:", err)
 			return
 		}
 	}
