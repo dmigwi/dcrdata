@@ -149,13 +149,16 @@ func (pgb *ChainDB) handleCoinSupplyUpgrade(client *rpcutils.BlockGate) error {
 
 		var msgBlock = block.MsgBlock()
 
-		err = pgb.db.QueryRow(`SELECT is_valid FROM blocks WHERE hash = $1 ;`, msgBlock.BlockHash().String()).Scan(&isValid)
+		err = pgb.db.QueryRow(`SELECT is_valid FROM blocks WHERE hash = $1 ;`,
+			msgBlock.BlockHash().String()).Scan(&isValid)
 		if err != nil {
 			return err
 		}
 
-		_, _, stakedDbTxVins := dbtypes.ExtractBlockTransactions(msgBlock, wire.TxTreeStake, pgb.chainParams, isValid)
-		_, _, regularDbTxVins := dbtypes.ExtractBlockTransactions(msgBlock, wire.TxTreeRegular, pgb.chainParams, isValid)
+		_, _, stakedDbTxVins := dbtypes.ExtractBlockTransactions(
+			msgBlock, wire.TxTreeStake, pgb.chainParams, isValid)
+		_, _, regularDbTxVins := dbtypes.ExtractBlockTransactions(
+			msgBlock, wire.TxTreeRegular, pgb.chainParams, isValid)
 		dbTxVins := append(stakedDbTxVins, regularDbTxVins...)
 
 		for _, v := range dbTxVins {
@@ -198,7 +201,8 @@ func (pgb *ChainDB) handleCoinSupplyUpgrade(client *rpcutils.BlockGate) error {
 func addNewColumns(db *sql.DB) (int, error) {
 	var columnsAdded = 0
 
-	for name, dataType := range map[string]string{"is_valid": "BOOLEAN", "block_time": "INT8", "value_in": "INT8"} {
+	for name, dataType := range map[string]string{
+		"is_valid": "BOOLEAN", "block_time": "INT8", "value_in": "INT8"} {
 		var isRowFound bool
 
 		err := db.QueryRow(`SELECT EXISTS( SELECT column_name FROM INFORMATION_SCHEMA.COLUMNS 
@@ -317,17 +321,5 @@ func versionAllTables(db *sql.DB, version TableVersion) error {
 
 		log.Infof("Modified the %v table version to %v", tableName, version)
 	}
-	return nil
-}
-
-// versionTable comments the specified table with the upgraded table version.
-func versionTable(db *sql.DB, tableName string, version TableVersion) error {
-	_, err := db.Exec(fmt.Sprintf(`COMMENT ON TABLE %s IS 'v%s';`,
-		tableName, version.String()))
-	if err != nil {
-		return err
-	}
-
-	log.Infof("Modified the %v table version to %v", tableName, version)
 	return nil
 }
