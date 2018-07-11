@@ -1,7 +1,9 @@
-// Package explorer handles the block explorer subsystem for generating the
-// explorer pages.
+// Copyright (c) 2018, The Decred developers
 // Copyright (c) 2017, The dcrdata developers
 // See LICENSE for details.
+
+// package explorer handles the block explorer subsystem for generating the
+// explorer pages.
 package explorer
 
 import (
@@ -223,9 +225,8 @@ func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource
 	return exp
 }
 
-// prePopulateChartsData should run in the background the first time the
-// system is initialized and consecutive times when a new block is added.
-// Its called at intervals of 5 new blocks.
+// prePopulateChartsData should run in the background the first time the system
+// is initialized and when new blocks are added.
 func (exp *explorerUI) prePopulateChartsData() {
 	log.Info("Pre-populating the charts data. This may take a minute...")
 	var err error
@@ -253,8 +254,8 @@ func (exp *explorerUI) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgB
 	exp.NewBlockDataMtx.Lock()
 	bData := blockData.ToBlockExplorerSummary()
 
-	// Update the charts data after every five blocks
-	// or if no charts data exists yet.
+	// Update the charts data after every five blocks or if no charts data
+	// exists yet.
 	if bData.Height%5 == 0 || len(CacheChartsData) == 0 {
 		go exp.prePopulateChartsData()
 	}

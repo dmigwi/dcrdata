@@ -1051,7 +1051,7 @@ func (c *appContext) getTicketPriceChartData(w http.ResponseWriter, r *http.Requ
 	chartData, ok := explorer.CacheChartsData["ticket-price"]
 	if !ok {
 		http.NotFound(w, r)
-		log.Warnf("No data matching ''ticket-price chart Type was found")
+		log.Warnf(`No data matching "ticket-price" chart Type was found`)
 		return
 	}
 	writeJSON(w, chartData, c.getIndentQuery(r))
@@ -1062,7 +1062,7 @@ func (c *appContext) getChartTypeData(w http.ResponseWriter, r *http.Request) {
 	chartData, ok := explorer.CacheChartsData[chartType]
 	if !ok {
 		http.NotFound(w, r)
-		log.Warnf("No data matching '%v' chart Type was found", chartType)
+		log.Warnf(`No data matching "%s" chart Type was found`, chartType)
 		return
 	}
 	writeJSON(w, chartData, c.getIndentQuery(r))

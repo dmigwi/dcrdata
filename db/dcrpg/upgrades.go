@@ -111,9 +111,9 @@ func (pgb *ChainDB) handleAgendasTableUpgrade(client *rpcutils.BlockGate) error 
 	return nil
 }
 
-// handleCoinSupplyUpgrade implements the upgrade do the new newly added columns in the vins table.
-// The new columns are mainly used to the coin supply chart.
-// If all the new columns are not added quite the db upgrade.
+// handleCoinSupplyUpgrade implements the upgrade to the new newly added columns
+// in the vins table. The new columns are mainly used for the coin supply chart.
+// If all the new columns are not added, quit the db upgrade.
 func (pgb *ChainDB) handleCoinSupplyUpgrade(client *rpcutils.BlockGate) error {
 	c, err := addNewColumns(pgb.db)
 	if c == 0 {
@@ -125,7 +125,7 @@ func (pgb *ChainDB) handleCoinSupplyUpgrade(client *rpcutils.BlockGate) error {
 		return err
 	}
 
-	log.Infof("Found the Best block at height: %v", height)
+	log.Infof("Found the best block at height: %v", height)
 
 	var limit, i, count uint64
 	var rowsUpdated int64
@@ -133,7 +133,7 @@ func (pgb *ChainDB) handleCoinSupplyUpgrade(client *rpcutils.BlockGate) error {
 	// Fetch the block associated with the provided block height.
 	for ; i < height+1; i++ {
 		var isValid bool
-		var block, err = client.UpdateToBlock(int64(i))
+		block, err := client.UpdateToBlock(int64(i))
 		if err != nil {
 			return err
 		}
@@ -147,7 +147,7 @@ func (pgb *ChainDB) handleCoinSupplyUpgrade(client *rpcutils.BlockGate) error {
 			log.Infof("Upgrading the vins table (Coin Supply Upgrade) from height %v to %v ", i, limit-1)
 		}
 
-		var msgBlock = block.MsgBlock()
+		msgBlock := block.MsgBlock()
 
 		err = pgb.db.QueryRow(`SELECT is_valid FROM blocks WHERE hash = $1 ;`,
 			msgBlock.BlockHash().String()).Scan(&isValid)
@@ -196,10 +196,10 @@ func (pgb *ChainDB) handleCoinSupplyUpgrade(client *rpcutils.BlockGate) error {
 	return nil
 }
 
-// addNewColumns checks if the new columns all ready exists
-// and add them if they are missing.
+// addNewColumns checks if the new columns already exist, and adds them if they
+// are missing.
 func addNewColumns(db *sql.DB) (int, error) {
-	var columnsAdded = 0
+	var columnsAdded int
 
 	for name, dataType := range map[string]string{
 		"is_valid": "BOOLEAN", "block_time": "INT8", "value_in": "INT8"} {
@@ -292,9 +292,9 @@ func (pgb *ChainDB) tableUpgrade(block *dcrutil.Block) (int64, error) {
 	return rowsUpdated, nil
 }
 
-// haveEmptyAgendasTable checks if the agendas table is empty.
-// If the agenda table exists 0 is returned otherwise 1 is returned.
-// If the table is not empty then this upgrade doesn't proceed.
+// haveEmptyAgendasTable checks if the agendas table is empty. If the agenda
+// table exists 0 is returned otherwise 1 is returned. If the table is not empty
+// then this upgrade doesn't proceed.
 func haveEmptyAgendasTable(db *sql.DB) (int, error) {
 	var isExists int
 

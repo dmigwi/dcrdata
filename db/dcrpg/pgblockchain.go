@@ -822,6 +822,7 @@ func (pgb *ChainDB) Store(blockData *blockdata.BlockData, msgBlock *wire.MsgBloc
 	if pgb == nil {
 		return nil
 	}
+	// New blocks stored this way are considered valid
 	_, _, err := pgb.StoreBlock(msgBlock, blockData.WinningTickets, true, true, true)
 	return err
 }
@@ -1083,7 +1084,7 @@ func (pgb *ChainDB) DeindexAll() error {
 
 // IndexAll creates all of the indexes in all tables
 func (pgb *ChainDB) IndexAll() error {
-	log.Infof("Indexing blocks table on tx_hash...")
+	log.Infof("Indexing blocks table on hash...")
 	if err := IndexBlockTableOnHash(pgb.db); err != nil {
 		return err
 	}
@@ -1362,10 +1363,16 @@ func (pgb *ChainDB) StoreBlock(msgBlock *wire.MsgBlock, winningTickets []string,
 			return
 		}
 
-		err = UpdateLastVins(pgb.db, lastBlockHash.String(), lastIsValid)
-		if err != nil {
-			log.Error("UpdateLastVins:", err)
-			return
+		// If the previous block is invalidated by this one, flag all the vins
+		// from the previous block's transactions as invalid. Do nothing
+		// otherwise since blocks' transactions are initially added as valid.
+		if !lastIsValid {
+			// Update the is_valid flag in the transactions from the previous block.
+			err = UpdateLastVins(pgb.db, lastBlockHash.String(), lastIsValid)
+			if err != nil {
+				log.Error("UpdateLastVins:", err)
+				return
+			}
 		}
 	}
 

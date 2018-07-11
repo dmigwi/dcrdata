@@ -1127,7 +1127,8 @@ func RetrieveStakeTxByHash(db *sql.DB, txHash string) (id uint64, blockHash stri
 	return
 }
 
-func RetrieveTxsByBlockHash(db *sql.DB, blockHash string) (ids []uint64, txs []string, blockInds []uint32, trees []int8, blockTimes []uint64, err error) {
+func RetrieveTxsByBlockHash(db *sql.DB, blockHash string) (ids []uint64, txs []string,
+	blockInds []uint32, trees []int8, blockTimes []uint64, err error) {
 	rows, err := db.Query(internal.SelectTxsByBlockHash, blockHash)
 	if err != nil {
 		return
@@ -1351,23 +1352,26 @@ func UpdateLastBlock(db *sql.DB, blockDbID uint64, isValid bool) error {
 	return nil
 }
 
-// UpdateLastVins updates the is_valid column using block hash.
+// UpdateLastVins updates the is_valid column in the vins table for all of the
+// transactions in the block specified by the given block hash.
 func UpdateLastVins(db *sql.DB, blockHash string, isValid bool) error {
 	_, txs, _, trees, timestamps, err := RetrieveTxsByBlockHash(db, blockHash)
 	if err != nil {
 		return err
 	}
 
-	var numRows = 0
+	var numRows int
 	for i, txHash := range txs {
 		n, err := sqlExec(db, internal.SetIsValidByTxHash,
-			"failed to update last vins tx validity: ", isValid, txHash, timestamps[i], trees[i])
+			"failed to update last vins tx validity: ", isValid, txHash,
+			timestamps[i], trees[i])
 		if err != nil {
 			return err
 		}
 
 		numRows += int(n)
 	}
+
 	// Rows updated can be more than the total number of txs fetched because
 	// stakebase and coinbase txs are both updated on vins.
 	if numRows < len(txs) {
@@ -1387,16 +1391,16 @@ func RetrieveVoutValue(db *sql.DB, txHash string, voutIndex uint32) (value uint6
 	return
 }
 
-// closeRows initiated closing of the Rows after reading all the data
+// closeRows closes the input sql.Rows, logging any error.
 func closeRows(rows *sql.Rows) {
 	if e := rows.Close(); e != nil {
 		log.Errorf("Close of Query failed: %v", e)
 	}
 }
 
-// RetrieveTicketsPriceByHeight fetches the ticket price and its timestamp
-// that are used to display the ticket price variation on ticket price chart.
-// This data is fetched at an interval of chaincfg.Params.StakeDiffWindowSize
+// RetrieveTicketsPriceByHeight fetches the ticket price and its timestamp that
+// are used to display the ticket price variation on ticket price chart. These
+// data are fetched at an interval of chaincfg.Params.StakeDiffWindowSize.
 func RetrieveTicketsPriceByHeight(db *sql.DB, val int64) (*dbtypes.ChartsData, error) {
 	var items = new(dbtypes.ChartsData)
 	rows, err := db.Query(internal.SelectBlocksTicketsPrice, val)
@@ -1415,7 +1419,8 @@ func RetrieveTicketsPriceByHeight(db *sql.DB, val int64) (*dbtypes.ChartsData, e
 		}
 
 		items.Time = append(items.Time, timestamp)
-		items.ValueF = append(items.ValueF, float64(price)/100000000)
+		priceCoin := dcrutil.Amount(price).ToCoin()
+		items.ValueF = append(items.ValueF, priceCoin)
 		items.Difficulty = append(items.Difficulty, difficulty)
 	}
 
@@ -1425,7 +1430,7 @@ func RetrieveTicketsPriceByHeight(db *sql.DB, val int64) (*dbtypes.ChartsData, e
 // retrieveCoinSupply fetches the coin supply data
 func retrieveCoinSupply(db *sql.DB) (*dbtypes.ChartsData, error) {
 	var items = new(dbtypes.ChartsData)
-	var rows, err = db.Query(internal.SelectCoinSupply)
+	rows, err := db.Query(internal.SelectCoinSupply)
 	if err != nil {
 		return nil, err
 	}
@@ -1443,7 +1448,7 @@ func retrieveCoinSupply(db *sql.DB) (*dbtypes.ChartsData, error) {
 		if value < 0 {
 			value = 0
 		}
-		sum += float64(value) / 100000000
+		sum += dcrutil.Amount(value).ToCoin()
 		items.Time = append(items.Time, uint64(timestamp))
 		items.ValueF = append(items.ValueF, sum)
 	}
@@ -1487,7 +1492,7 @@ func retrieveBlockTicketsPoolValue(db *sql.DB) (*dbtypes.ChartsData, error) {
 
 func retrieveTxPerDay(db *sql.DB) (*dbtypes.ChartsData, error) {
 	var items = new(dbtypes.ChartsData)
-	var rows, err = db.Query(internal.SelectTxsPerDay)
+	rows, err := db.Query(internal.SelectTxsPerDay)
 	if err != nil {
 		return nil, err
 	}
@@ -1497,7 +1502,6 @@ func retrieveTxPerDay(db *sql.DB) (*dbtypes.ChartsData, error) {
 	for rows.Next() {
 		var timestr string
 		var count uint64
-
 		err = rows.Scan(&timestr, &count)
 		if err != nil {
 			return nil, err
@@ -1511,7 +1515,7 @@ func retrieveTxPerDay(db *sql.DB) (*dbtypes.ChartsData, error) {
 
 func retrieveTicketSpendTypePerBlock(db *sql.DB) (*dbtypes.ChartsData, error) {
 	var items = new(dbtypes.ChartsData)
-	var rows, err = db.Query(internal.SelectTicketSpendTypeByBlock)
+	rows, err := db.Query(internal.SelectTicketSpendTypeByBlock)
 	if err != nil {
 		return nil, err
 	}
@@ -1520,7 +1524,6 @@ func retrieveTicketSpendTypePerBlock(db *sql.DB) (*dbtypes.ChartsData, error) {
 
 	for rows.Next() {
 		var height, unspent, revoked uint64
-
 		err = rows.Scan(&height, &unspent, &revoked)
 		if err != nil {
 			return nil, err
@@ -1534,8 +1537,7 @@ func retrieveTicketSpendTypePerBlock(db *sql.DB) (*dbtypes.ChartsData, error) {
 }
 
 func retrieveTicketByOutputCount(db *sql.DB, dataType outputCountType) (*dbtypes.ChartsData, error) {
-	var query = ""
-
+	var query string
 	switch dataType {
 	case outputCountByAllBlocks:
 		query = internal.SelectTicketsOutputCountByAllBlocks
@@ -1546,7 +1548,7 @@ func retrieveTicketByOutputCount(db *sql.DB, dataType outputCountType) (*dbtypes
 	}
 
 	var items = new(dbtypes.ChartsData)
-	var rows, err = db.Query(query)
+	rows, err := db.Query(query)
 	if err != nil {
 		return nil, err
 	}
@@ -1555,7 +1557,6 @@ func retrieveTicketByOutputCount(db *sql.DB, dataType outputCountType) (*dbtypes
 
 	for rows.Next() {
 		var height, solo, pooled uint64
-
 		err = rows.Scan(&height, &solo, &pooled)
 		if err != nil {
 			return nil, err
