@@ -1219,7 +1219,8 @@ func RetrieveAddressTxnOutputWithTransaction(db *sql.DB, address string, current
 	return outputs, nil
 }
 
-// retrieveImmatureTickets appends the immature tickets too the ticket pool tx hashes.
+// retrieveImmatureTickets fetches the immature tickets which should also be
+// part of the current the ticketpool txs.
 func retrieveImmatureTickets(db *sql.DB, bestBlock int64) (hashes []string, err error) {
 	rws, err := db.Query(internal.SelectImmatureTickets, bestBlock-255)
 	if err != nil {
@@ -1238,7 +1239,8 @@ func retrieveImmatureTickets(db *sql.DB, bestBlock int64) (hashes []string, err 
 	return
 }
 
-// retrieveTicketsByDate fetches the tickets by the purchase date.
+// retrieveTicketsByDate fetches the tickets in the current ticketpool by the
+// purchase date.
 func retrieveTicketsByDate(db *sql.DB, bestBlock int64,
 	hashes []string, groupBy int64) (*dbtypes.PoolTicketsData, error) {
 	var rows, err = db.Query(internal.MakeRetrieveTicketsStatement(hashes, 1, bestBlock), groupBy)
@@ -1258,13 +1260,14 @@ func retrieveTicketsByDate(db *sql.DB, bestBlock int64,
 		tickets.Immature = append(tickets.Immature, immature)
 		tickets.Live = append(tickets.Live, live)
 		// Returns the average value of a ticket depending on the grouping mode used
-		tickets.Price = append(tickets.Price, (price / (total * 100000000)))
+		tickets.Price = append(tickets.Price, dcrutil.Amount(price/total).ToCoin())
 	}
 
 	return tickets, nil
 }
 
-// retrieveTicketByPrice fetches the tickets by the purchase price
+// retrieveTicketByPrice fetches the tickets in the current ticketpool by the
+// purchase price.
 func retrieveTicketByPrice(db *sql.DB, bestBlock int64, hashes []string) (*dbtypes.PoolTicketsData, error) {
 	var tickets = new(dbtypes.PoolTicketsData)
 	var rows, err = db.Query(internal.MakeRetrieveTicketsStatement(hashes, 2, bestBlock))
@@ -1279,7 +1282,7 @@ func retrieveTicketByPrice(db *sql.DB, bestBlock int64, hashes []string) (*dbtyp
 		if err != nil {
 			return nil, fmt.Errorf("retrieveTicketByPrice %v", err)
 		}
-		tickets.Price = append(tickets.Price, (price / 100000000))
+		tickets.Price = append(tickets.Price, dcrutil.Amount(price).ToCoin())
 		tickets.Immature = append(tickets.Immature, immature)
 		tickets.Live = append(tickets.Live, live)
 	}
@@ -1287,7 +1290,8 @@ func retrieveTicketByPrice(db *sql.DB, bestBlock int64, hashes []string) (*dbtyp
 	return tickets, nil
 }
 
-// retrieveTickesGroupedByType the count of tickets grouped by their outputs.
+// retrieveTickesGroupedByType the count of tickets in the current ticketpool
+// grouped by their outputs.
 func retrieveTickesGroupedByType(db *sql.DB, hashes []string) (*dbtypes.PoolTicketsData, error) {
 	var entry dbtypes.PoolTicketsData
 	err := db.QueryRow(internal.MakeRetrieveTicketsStatement(hashes, 3)).Scan(
@@ -1334,7 +1338,7 @@ func RetrieveAddressTxnsOrdered(db *sql.DB, addresses []string, recentBlockHeigh
 }
 
 // RetrieveAddressTxnsByFundingTx all Transactions related to a set of
-// addresses and funded by a specific transaction
+// addresses funded by a specific transaction.
 func RetrieveAddressTxnsByFundingTx(db *sql.DB, fundTxHash string,
 	addresses []string) (aSpendByFunHash []*apitypes.AddressSpendByFunHash, err error) {
 	stmt, err := db.Prepare(internal.SelectAddressesTxnByFundingTx)

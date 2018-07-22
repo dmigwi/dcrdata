@@ -237,6 +237,7 @@
                 ticketsFunc(ticketsPrice),
                 {
                     digitsAfterDecimal: 8,
+                    retainDateWindow: false,
                     showRangeSelector: true,
                     drawPoints: true,
                     labels: ['Date', 'Price'],
