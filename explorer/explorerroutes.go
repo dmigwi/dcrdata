@@ -205,7 +205,7 @@ func (exp *explorerUI) Ticketpool(w http.ResponseWriter, r *http.Request) {
 	chartData, groupedTickets, err := exp.explorerSource.TicketPoolVisualization("all")
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
-		exp.ErrorPage(w, "Something went wrong...", "and it's not your fault, try refreshing... that usually fixes things", false)
+		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, ErrorStatusType)
 		return
 	}
 	var mp = dbtypes.PoolTicketsData{}
@@ -233,7 +233,7 @@ func (exp *explorerUI) Ticketpool(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Errorf("Template execute failure: %v", err)
-		exp.ErrorPage(w, "Something went wrong...", "and it's not your fault, try refreshing... that usually fixes things", false)
+		exp.StatusPage(w, defaultErrorCode, defaultErrorMessage, ErrorStatusType)
 		return
 	}
 
