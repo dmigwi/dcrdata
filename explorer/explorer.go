@@ -217,7 +217,7 @@ func New(dataSource explorerDataSourceLite, primaryDataSource explorerDataSource
 		return nil
 	}
 	tmpls := []string{"home", "explorer", "mempool", "block", "tx", "address",
-		"rawtx", "parameters", "agenda", "agendas", "charts", "ticketpool"}
+		"rawtx", "status", "parameters", "agenda", "agendas", "charts", "ticketpool"}
 
 	tempDefaults := []string{"extras"}
 
