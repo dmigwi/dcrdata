@@ -498,7 +498,7 @@ func (pgb *ChainDB) TicketPoolByDateAndInterval(interval string) ([]string, *dbt
 	case "all":
 		sec = 1
 	default:
-		return []string{}, nil, 0, fmt.Errorf(`The interval provided "%s" is unknown`, interval)
+		return []string{}, nil, 0, fmt.Errorf(`unknown interval "%s"`, interval)
 	}
 
 	// All ticket IDs for live and immature tickets
