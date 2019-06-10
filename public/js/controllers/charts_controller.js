@@ -16,25 +16,21 @@ let Dygraph // lazy loaded on connect
 const aDay = 86400 * 1000 // in milliseconds
 const aMonth = 30 // in days
 const atomsToDCR = 1e-8
-const windowScales = ['ticket-price', 'pow-difficulty', 'missed-votes']
-const lineScales = ['ticket-price']
+const chartsToHideBin = ['ticket-price', 'pow-difficulty', 'missed-votes']
+const chartsToHideScale = ['ticket-price']
+const chartsToHideAll = ['duration-btw-blocks']
 // index 0 represents y1 and 1 represents y2 axes.
 const yValueRanges = { 'ticket-price': [1] }
-var ticketPoolSizeTarget, premine, stakeValHeight, stakeShare
+const altXLabel = { 'duration-btw-blocks': 'Duration Between Blocks (Seconds)' }
+var ticketPoolSizeTarget, premine, stakeValHeight, stakeShare, summation
 var baseSubsidy, subsidyInterval, subsidyExponent, windowSize, avgBlockTime
 var rawCoinSupply, rawPoolValue
 
-function usesWindowUnits (chart) {
-  return windowScales.indexOf(chart) > -1
-}
-
-function isScaleDisabled (chart) {
-  return lineScales.indexOf(chart) > -1
-}
-
-function intComma (amount) {
-  return amount.toLocaleString(undefined, { maximumFractionDigits: 0 })
-}
+var isBinDisabled = (chart) => chartsToHideBin.indexOf(chart) > -1
+var isScaleDisabled = (chart) => chartsToHideScale.indexOf(chart) > -1
+var isAllControlsDisabled = (chart) => chartsToHideAll.indexOf(chart) > -1
+var customXLabel = (chart) => altXLabel[chart] || ''
+var intComma = (amount) => amount.toLocaleString(undefined, { maximumFractionDigits: 0 })
 
 function axesToRestoreYRange (chartName, origYRange, newYRange) {
   let axesIndexes = yValueRanges[chartName]
@@ -126,7 +122,11 @@ function legendFormatter (data) {
           break
 
         case 'stake participation':
-          yVal = series.y.toFixed(4) + '%'
+          yVal = (Math.float(series.y) / 1e4) + '%'
+          break
+
+        case 'blocks count':
+          yVal = intComma(series.y) + ' (' + Math.float((series.y / summation) * 1e4) / 1e2 + '%)'
           break
       }
       let result = `${nodes} <div class="pr-2">${series.dashHTML} ${series.labelHTML}: ${yVal}</div>`
@@ -316,6 +316,9 @@ export default class extends Controller {
       'binSelector',
       'scaleSelector',
       'ticketsPurchase',
+      'dualAxesSelector',
+      'customAxisSelector',
+      'customAxisOption',
       'ticketsPrice',
       'vSelector',
       'binSize'
@@ -409,6 +412,7 @@ export default class extends Controller {
       drawCallback: null,
       logscale: this.settings.scale === 'log',
       valueRange: [null, null],
+      dataWindow: null,
       visibility: null,
       y2label: null,
       stepPlot: false,
@@ -419,6 +423,8 @@ export default class extends Controller {
     var isHeightAxis = this.selectedAxis() === 'height'
     var xlabel = isHeightAxis ? 'Block Height' : 'Date'
     var isDayBinned = this.selectedBin() === 'day'
+    var customLabel = customXLabel(this.chartSelectTarget.value)
+    xlabel = customLabel !== '' ? customLabel : xlabel
 
     rawPoolValue = []
     rawCoinSupply = []
@@ -506,9 +512,9 @@ export default class extends Controller {
         break
 
       case 'duration-btw-blocks': // Duration between blocks graph
-        d = zipXYData(data, isHeightAxis, isDayBinned)
-        assign(gOptions, mapDygraphOptions(d, [xlabel, 'Duration Between Blocks'], false,
-          'Duration Between Blocks (seconds)', false, false))
+        d = zipXYData(data, true, true)
+        assign(gOptions, mapDygraphOptions(d, [xlabel, 'Blocks Count'], false, 'Count of Blocks', false, false))
+        summation = data.y.reduce((total, n) => total + n)
         break
 
       case 'chainwork': // Total chainwork over time
@@ -539,20 +545,18 @@ export default class extends Controller {
   async selectChart () {
     var selection = this.settings.chart = this.chartSelectTarget.value
     this.chartWrapperTarget.classList.add('loading')
-    if (isScaleDisabled(selection)) {
-      this.scaleSelectorTarget.classList.add('d-hide')
-      this.vSelectorTarget.classList.remove('d-hide')
+    this.toggleAllControls(isAllControlsDisabled(selection))
+    if (isAllControlsDisabled(selection)) {
+      this.customAxisOptionTarget.innerHTML = customXLabel(selection)
     } else {
-      this.scaleSelectorTarget.classList.remove('d-hide')
-      this.vSelectorTarget.classList.add('d-hide')
+      this.toggleBinControls(isBinDisabled(selection))
+      this.toggleScaleControls(isScaleDisabled(selection), selection === 'ticket-price')
     }
+
     if (selectedChart !== selection || this.settings.bin !== this.selectedBin() ||
-      this.settings.axis !== this.selectedAxis()) {
+      (this.settings.axis !== this.selectedAxis() && this.selectedAxis())) {
       let url = '/api/chart/' + selection
-      if (usesWindowUnits(selection)) {
-        this.binSelectorTarget.classList.add('d-hide')
-      } else {
-        this.binSelectorTarget.classList.remove('d-hide')
+      if (!isBinDisabled(selection) && !isAllControlsDisabled(selection)) {
         this.settings.bin = this.selectedBin()
         if (!this.settings.bin) this.settings.bin = 'day' // Set the default.
         url += `?bin=${this.settings.bin}`
@@ -627,6 +631,38 @@ export default class extends Controller {
     if (start === end) return
     if (this.lastZoom.start === start) return // only handle slide event.
     this._zoomCallback(start, end)
+  }
+
+  toggleAllControls (isAllDisabled) {
+    this.toggleScaleControls(isAllDisabled)
+    this.toggleZoomControls(isAllDisabled)
+    this.toggleBinControls(isAllDisabled)
+    this.toggleAxisControls(isAllDisabled)
+  }
+
+  toggleScaleControls (isScaleDisabled, isVEnabled) {
+    isVEnabled = isVEnabled || false
+    var scaleControl = this.scaleSelectorTarget.classList
+    var vControl = this.vSelectorTarget.classList
+    isScaleDisabled ? scaleControl.add('d-hide') : scaleControl.remove('d-hide')
+    isScaleDisabled && isVEnabled && true ? vControl.remove('d-hide') : vControl.add('d-hide')
+  }
+
+  toggleZoomControls (isZoomDisabled) {
+    var zoomControl = this.zoomSelectorTarget.classList
+    isZoomDisabled ? zoomControl.add('d-hide') : zoomControl.remove('d-hide')
+  }
+
+  toggleBinControls (isBinControls) {
+    var binControl = this.binSelectorTarget.classList
+    isBinControls ? binControl.add('d-hide') : binControl.remove('d-hide')
+  }
+
+  toggleAxisControls (isAxesControls) {
+    var dualAxes = this.dualAxesSelectorTarget.classList
+    var customAxis = this.customAxisSelectorTarget.classList
+    isAxesControls ? dualAxes.add('d-hide') : dualAxes.remove('d-hide')
+    isAxesControls ? customAxis.remove('d-hide') : customAxis.add('d-hide')
   }
 
   setZoom (e) {

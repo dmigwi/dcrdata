@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"sort"
 	"strconv"
 	"sync"
 	"time"
@@ -961,52 +962,37 @@ func accumulate(data ChartUints) ChartUints {
 // Translate the times slice to a slice of differences. The original dataset
 // minus the first element is returned for convenience.
 func blockTimes(blocks ChartUints) (ChartUints, ChartUints) {
-	times := make(ChartUints, 0, len(blocks))
 	dataLen := len(blocks)
+	keys := make(ChartUints, 0, len(blocks))
 	if dataLen < 2 {
 		// Fewer than two data points is invalid for btw. Return empty data sets so
 		// that the JSON encoding will have the correct type.
-		return times, times
+		return keys, keys
 	}
+
 	last := blocks[0]
+	var tracker = make(map[uint64]uint64, 0)
 	for _, v := range blocks[1:] {
 		dif := v - last
 		if int64(dif) < 0 {
 			dif = 0
 		}
-		times = append(times, dif)
 		last = v
-	}
-	return blocks[1:], times
-}
-
-// Take the average block times on the intervals defined by the ticks argument.
-func avgBlockTimes(ticks, blocks ChartUints) (ChartUints, ChartUints) {
-	if len(ticks) < 2 {
-		// Return empty arrays so that JSON-encoding will have the correct type.
-		return ChartUints{}, ChartUints{}
-	}
-	avgDiffs := make(ChartUints, 0, len(ticks)-1)
-	times := make(ChartUints, 0, len(ticks)-1)
-	nextIdx := 1
-	workingOn := ticks[0]
-	next := ticks[nextIdx]
-	lastIdx := 0
-	for i, t := range blocks {
-		if t > next {
-			_, pts := blockTimes(blocks[lastIdx:i])
-			avgDiffs = append(avgDiffs, pts.Avg(0, len(pts)))
-			times = append(times, workingOn)
-			nextIdx++
-			if nextIdx > len(ticks)-1 {
-				break
-			}
-			lastIdx = i
-			next = ticks[nextIdx]
-			workingOn = next
+		if _, ok := tracker[dif]; !ok {
+			keys = append(keys, dif)
 		}
+
+		tracker[dif]++
 	}
-	return times, avgDiffs
+
+	var count = newChartUints(len(tracker))
+	sort.Slice(keys, func(i, j int) bool { return keys[i] < keys[j] })
+
+	for _, v := range keys {
+		count = append(count, tracker[v])
+	}
+
+	return keys, count
 }
 
 func blockSizeChart(charts *ChartData, bin binLevel, axis axisType) ([]byte, error) {
@@ -1070,23 +1056,7 @@ func coinSupplyChart(charts *ChartData, bin binLevel, axis axisType) ([]byte, er
 }
 
 func durationBTWChart(charts *ChartData, bin binLevel, axis axisType) ([]byte, error) {
-	switch bin {
-	case BlockBin:
-		return charts.encode(blockTimes(charts.Blocks.Time))
-	case DayBin:
-		switch axis {
-		case HeightAxis:
-			if len(charts.Days.Height) < 2 {
-				return nil, fmt.Errorf("found the length of charts.Days.Height slice to be less than 2")
-			}
-			_, t := avgBlockTimes(charts.Days.Time, charts.Blocks.Time)
-			return charts.encode(charts.Days.Height[:len(charts.Days.Height)-1], t)
-
-		default:
-			return charts.encode(avgBlockTimes(charts.Days.Time, charts.Blocks.Time))
-		}
-	}
-	return nil, InvalidBinErr
+	return charts.encode(blockTimes(charts.Blocks.Time))
 }
 
 // hashrate converts the provided chainwork data to hashrate data. Since
