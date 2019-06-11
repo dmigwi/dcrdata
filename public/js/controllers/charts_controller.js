@@ -412,7 +412,7 @@ export default class extends Controller {
       drawCallback: null,
       logscale: this.settings.scale === 'log',
       valueRange: [null, null],
-      dataWindow: null,
+      dateWindow: [null, null],
       visibility: null,
       y2label: null,
       stepPlot: false,
@@ -621,7 +621,7 @@ export default class extends Controller {
   }
 
   isTimeAxis () {
-    return this.selectedAxis() === 'time'
+    return this.selectedAxis() === 'time' && customXLabel(this.chartWrapperTarget.value) !== ''
   }
 
   _drawCallback (graph, first) {
