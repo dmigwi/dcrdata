@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/decred/dcrd/chaincfg/v2"
+	"github.com/decred/dcrdata/db/dbtypes/v2"
 	"github.com/decred/dcrdata/semver"
 	"github.com/decred/dcrdata/txhelpers/v3"
 )
@@ -78,6 +79,18 @@ func ParseAxis(aType string) axisType {
 	default:
 		return TimeAxis
 	}
+}
+
+// ParseLimit returns the matching limit type and the corresponding limit
+// duration in seconds. The default is "all" when no limit is set or error occured.
+func ParseLimit(limit string) (string, uint64) {
+	limitLevel := dbtypes.TimeGroupingFromStr(limit)
+	timeInSecs, err := dbtypes.TimeBasedGroupingToInterval(limitLevel)
+	if err != nil {
+		return "all", 0
+	}
+
+	return limitLevel.String(), uint64(timeInSecs)
 }
 
 const (
@@ -368,6 +381,7 @@ type ChartData struct {
 	mtx          sync.RWMutex
 	ctx          context.Context
 	DiffInterval int32
+	AVGBlockTime uint64
 	StartPOS     int32
 	Blocks       *zoomSet
 	Windows      *windowSet
@@ -815,6 +829,7 @@ func NewChartData(ctx context.Context, height uint32, chainParams *chaincfg.Para
 	return &ChartData{
 		ctx:          ctx,
 		DiffInterval: int32(chainParams.StakeDiffWindowSize),
+		AVGBlockTime: uint64(chainParams.TargetTimePerBlock.Seconds()),
 		StartPOS:     int32(chainParams.StakeValidationHeight),
 		Blocks:       newBlockSet(size),
 		Windows:      newWindowSet(windows),
@@ -825,9 +840,11 @@ func NewChartData(ctx context.Context, height uint32, chainParams *chaincfg.Para
 }
 
 // A cacheKey is used to specify cached data of a given type and BinLevel.
-func cacheKey(chartID string, bin binLevel, axis axisType) string {
+func cacheKey(chartID string, bin binLevel, axis axisType, limit string) string {
 	// The axis type is only required when bin level is set to DayBin.
-	if bin == DayBin {
+	if chartID == DurationBTW {
+		return chartID + "-" + string(bin) + "-" + limit
+	} else if bin == DayBin {
 		return chartID + "-" + string(bin) + "-" + string(axis)
 	}
 	return chartID + "-" + string(bin)
@@ -848,9 +865,10 @@ func (charts *ChartData) cacheID(bin binLevel) uint64 {
 }
 
 // Grab the cached data, if it exists. The cacheID is returned as a convenience.
-func (charts *ChartData) getCache(chartID string, bin binLevel, axis axisType) (data *cachedChart, found bool, cacheID uint64) {
+func (charts *ChartData) getCache(chartID string, bin binLevel,
+	axis axisType, limit string) (data *cachedChart, found bool, cacheID uint64) {
 	// Ignore zero length since bestHeight would just be set to zero anyway.
-	ck := cacheKey(chartID, bin, axis)
+	ck := cacheKey(chartID, bin, axis, limit)
 	charts.cacheMtx.RLock()
 	defer charts.cacheMtx.RUnlock()
 	cacheID = charts.cacheID(bin)
@@ -859,8 +877,9 @@ func (charts *ChartData) getCache(chartID string, bin binLevel, axis axisType) (
 }
 
 // Store the chart associated with the provided type and BinLevel.
-func (charts *ChartData) cacheChart(chartID string, bin binLevel, axis axisType, data []byte) {
-	ck := cacheKey(chartID, bin, axis)
+func (charts *ChartData) cacheChart(chartID string, bin binLevel,
+	axis axisType, limit string, data []byte) {
+	ck := cacheKey(chartID, bin, axis, limit)
 	charts.cacheMtx.Lock()
 	defer charts.cacheMtx.Unlock()
 	// Using the current best cacheID. This leaves open the small possibility that
@@ -874,7 +893,7 @@ func (charts *ChartData) cacheChart(chartID string, bin binLevel, axis axisType,
 
 // ChartMaker is a function that accepts a chart type and BinLevel, and returns
 // a JSON-encoded chartResponse.
-type ChartMaker func(charts *ChartData, bin binLevel, axis axisType) ([]byte, error)
+type ChartMaker func(charts *ChartData, bin binLevel, axis axisType, duration uint64) ([]byte, error)
 
 var chartMakers = map[string]ChartMaker{
 	BlockSize:       blockSizeChart,
@@ -895,10 +914,11 @@ var chartMakers = map[string]ChartMaker{
 
 // Chart will return a JSON-encoded chartResponse of the provided type
 // and BinLevel.
-func (charts *ChartData) Chart(chartID, binString, axisString string) ([]byte, error) {
+func (charts *ChartData) Chart(chartID, binString, axisString, limitString string) ([]byte, error) {
 	bin := ParseBin(binString)
 	axis := ParseAxis(axisString)
-	cache, found, cacheID := charts.getCache(chartID, bin, axis)
+	limit, duration := ParseLimit(limitString)
+	cache, found, cacheID := charts.getCache(chartID, bin, axis, limit)
 	if found && cache.cacheID == cacheID {
 		return cache.data, nil
 	}
@@ -909,12 +929,12 @@ func (charts *ChartData) Chart(chartID, binString, axisString string) ([]byte, e
 	// Do the locking here, rather than in encodeXY, so that the helper functions
 	// (accumulate, btw) are run under lock.
 	charts.mtx.RLock()
-	data, err := maker(charts, bin, axis)
+	data, err := maker(charts, bin, axis, duration)
 	charts.mtx.RUnlock()
 	if err != nil {
 		return nil, err
 	}
-	charts.cacheChart(chartID, bin, axis, data)
+	charts.cacheChart(chartID, bin, axis, limit, data)
 	return data, nil
 }
 
@@ -960,8 +980,9 @@ func accumulate(data ChartUints) ChartUints {
 }
 
 // Translate the times slice to a slice of differences. The original dataset
-// minus the first element is returned for convenience.
-func blockTimes(blocks ChartUints) (ChartUints, ChartUints) {
+// minus the first element is returned for convenience. limit defines the number
+// of blocks to consider for the current limitType from the best block.
+func blockTimes(blocks ChartUints, limit int) (ChartUints, ChartUints) {
 	dataLen := len(blocks)
 	keys := make(ChartUints, 0, len(blocks))
 	if dataLen < 2 {
@@ -970,9 +991,15 @@ func blockTimes(blocks ChartUints) (ChartUints, ChartUints) {
 		return keys, keys
 	}
 
-	last := blocks[0]
+	var k int
+	if limit > 0 && limit < len(blocks) {
+		k = len(blocks) - limit
+	}
+
+	last := blocks[k]
+	k++
 	var tracker = make(map[uint64]uint64, 0)
-	for _, v := range blocks[1:] {
+	for _, v := range blocks[k:] {
 		dif := v - last
 		if int64(dif) < 0 {
 			dif = 0
@@ -981,7 +1008,6 @@ func blockTimes(blocks ChartUints) (ChartUints, ChartUints) {
 		if _, ok := tracker[dif]; !ok {
 			keys = append(keys, dif)
 		}
-
 		tracker[dif]++
 	}
 
@@ -995,7 +1021,7 @@ func blockTimes(blocks ChartUints) (ChartUints, ChartUints) {
 	return keys, count
 }
 
-func blockSizeChart(charts *ChartData, bin binLevel, axis axisType) ([]byte, error) {
+func blockSizeChart(charts *ChartData, bin binLevel, axis axisType, _ uint64) ([]byte, error) {
 	switch bin {
 	case BlockBin:
 		return charts.encode(charts.Blocks.Time, charts.Blocks.BlockSize)
@@ -1010,7 +1036,7 @@ func blockSizeChart(charts *ChartData, bin binLevel, axis axisType) ([]byte, err
 	return nil, InvalidBinErr
 }
 
-func blockchainSizeChart(charts *ChartData, bin binLevel, axis axisType) ([]byte, error) {
+func blockchainSizeChart(charts *ChartData, bin binLevel, axis axisType, _ uint64) ([]byte, error) {
 	switch bin {
 	case BlockBin:
 		return charts.encode(charts.Blocks.Time, accumulate(charts.Blocks.BlockSize))
@@ -1025,7 +1051,7 @@ func blockchainSizeChart(charts *ChartData, bin binLevel, axis axisType) ([]byte
 	return nil, InvalidBinErr
 }
 
-func chainWorkChart(charts *ChartData, bin binLevel, axis axisType) ([]byte, error) {
+func chainWorkChart(charts *ChartData, bin binLevel, axis axisType, _ uint64) ([]byte, error) {
 	switch bin {
 	case BlockBin:
 		return charts.encode(charts.Blocks.Time, charts.Blocks.Chainwork)
@@ -1040,7 +1066,7 @@ func chainWorkChart(charts *ChartData, bin binLevel, axis axisType) ([]byte, err
 	return nil, InvalidBinErr
 }
 
-func coinSupplyChart(charts *ChartData, bin binLevel, axis axisType) ([]byte, error) {
+func coinSupplyChart(charts *ChartData, bin binLevel, axis axisType, _ uint64) ([]byte, error) {
 	switch bin {
 	case BlockBin:
 		return charts.encode(charts.Blocks.Time, accumulate(charts.Blocks.NewAtoms))
@@ -1055,8 +1081,14 @@ func coinSupplyChart(charts *ChartData, bin binLevel, axis axisType) ([]byte, er
 	return nil, InvalidBinErr
 }
 
-func durationBTWChart(charts *ChartData, bin binLevel, axis axisType) ([]byte, error) {
-	return charts.encode(blockTimes(charts.Blocks.Time))
+// durationLimit helps to calculate the number of blocks to consider in the dataset
+// from the best block.
+func durationBTWChart(charts *ChartData, bin binLevel, axis axisType, durationLimit uint64) ([]byte, error) {
+	var interval int
+	if durationLimit > charts.AVGBlockTime {
+		interval = int(durationLimit / charts.AVGBlockTime)
+	}
+	return charts.encode(blockTimes(charts.Blocks.Time, interval))
 }
 
 // hashrate converts the provided chainwork data to hashrate data. Since
@@ -1087,7 +1119,7 @@ func hashrate(time, chainwork ChartUints) (ChartUints, ChartUints) {
 	return t, y
 }
 
-func hashRateChart(charts *ChartData, bin binLevel, axis axisType) ([]byte, error) {
+func hashRateChart(charts *ChartData, bin binLevel, axis axisType, _ uint64) ([]byte, error) {
 	switch bin {
 	case BlockBin:
 		t, y := hashrate(charts.Blocks.Time, charts.Blocks.Chainwork)
@@ -1105,17 +1137,17 @@ func hashRateChart(charts *ChartData, bin binLevel, axis axisType) ([]byte, erro
 	return nil, InvalidBinErr
 }
 
-func powDifficultyChart(charts *ChartData, _ binLevel, _ axisType) ([]byte, error) {
+func powDifficultyChart(charts *ChartData, _ binLevel, _ axisType, _ uint64) ([]byte, error) {
 	// Pow Difficulty only has window level bin, so all others are ignored.
 	return charts.encode(charts.Windows.Time, charts.Windows.PowDiff)
 }
 
-func ticketPriceChart(charts *ChartData, _ binLevel, _ axisType) ([]byte, error) {
+func ticketPriceChart(charts *ChartData, _ binLevel, _ axisType, _ uint64) ([]byte, error) {
 	// Ticket price only has window level bin, so all others are ignored.
 	return charts.encode(charts.Windows.Time, charts.Windows.TicketPrice, charts.Windows.StakeCount)
 }
 
-func txCountChart(charts *ChartData, bin binLevel, axis axisType) ([]byte, error) {
+func txCountChart(charts *ChartData, bin binLevel, axis axisType, _ uint64) ([]byte, error) {
 	switch bin {
 	case BlockBin:
 		return charts.encode(charts.Blocks.Time, charts.Blocks.TxCount)
@@ -1130,7 +1162,7 @@ func txCountChart(charts *ChartData, bin binLevel, axis axisType) ([]byte, error
 	return nil, InvalidBinErr
 }
 
-func feesChart(charts *ChartData, bin binLevel, axis axisType) ([]byte, error) {
+func feesChart(charts *ChartData, bin binLevel, axis axisType, _ uint64) ([]byte, error) {
 	switch bin {
 	case BlockBin:
 		return charts.encode(charts.Blocks.Time, charts.Blocks.Fees)
@@ -1145,7 +1177,7 @@ func feesChart(charts *ChartData, bin binLevel, axis axisType) ([]byte, error) {
 	return nil, InvalidBinErr
 }
 
-func ticketPoolSizeChart(charts *ChartData, bin binLevel, axis axisType) ([]byte, error) {
+func ticketPoolSizeChart(charts *ChartData, bin binLevel, axis axisType, _ uint64) ([]byte, error) {
 	switch bin {
 	case BlockBin:
 		return charts.encode(charts.Blocks.Time, charts.Blocks.PoolSize)
@@ -1160,7 +1192,7 @@ func ticketPoolSizeChart(charts *ChartData, bin binLevel, axis axisType) ([]byte
 	return nil, InvalidBinErr
 }
 
-func poolValueChart(charts *ChartData, bin binLevel, axis axisType) ([]byte, error) {
+func poolValueChart(charts *ChartData, bin binLevel, axis axisType, _ uint64) ([]byte, error) {
 	switch bin {
 	case BlockBin:
 		return charts.encode(charts.Blocks.Time, charts.Blocks.PoolValue)
@@ -1175,7 +1207,7 @@ func poolValueChart(charts *ChartData, bin binLevel, axis axisType) ([]byte, err
 	return nil, InvalidBinErr
 }
 
-func missedVotesChart(charts *ChartData, _ binLevel, _ axisType) ([]byte, error) {
+func missedVotesChart(charts *ChartData, _ binLevel, _ axisType, _ uint64) ([]byte, error) {
 	stakeValidWindows := int(charts.StartPOS / charts.DiffInterval)
 	if stakeValidWindows >= len(charts.Windows.MissedVotes) ||
 		stakeValidWindows >= len(charts.Windows.Time) {

@@ -7,7 +7,7 @@ import { getDefault } from '../helpers/module_helper'
 import axios from 'axios'
 import TurboQuery from '../helpers/turbolinks_helper'
 import globalEventBus from '../services/event_bus_service'
-import { isEqual } from '../helpers/chart_helper'
+import { isEqual, barChartPlotter } from '../helpers/chart_helper'
 import dompurify from 'dompurify'
 
 var selectedChart
@@ -320,7 +320,9 @@ export default class extends Controller {
       'customAxisSelector',
       'customAxisOption',
       'ticketsPrice',
+      'limitLabel',
       'vSelector',
+      'zoomLabel',
       'binSize'
     ]
   }
@@ -337,7 +339,7 @@ export default class extends Controller {
     windowSize = parseInt(this.data.get('windowSize'))
     avgBlockTime = parseInt(this.data.get('blockTime')) * 1000
 
-    this.settings = TurboQuery.nullTemplate(['chart', 'zoom', 'scale', 'bin', 'axis'])
+    this.settings = TurboQuery.nullTemplate(['chart', 'zoom', 'scale', 'bin', 'axis', 'limit'])
     this.query.update(this.settings)
     this.settings.chart = this.settings.chart || 'ticket-price'
     this.zoomCallback = this._zoomCallback.bind(this)
@@ -394,7 +396,13 @@ export default class extends Controller {
 
     if (this.settings.axis) this.setAxis(this.settings.axis) // set first
     if (this.settings.scale === 'log') this.setScale(this.settings.scale)
-    if (this.settings.zoom) this.setZoom(this.settings.zoom)
+    let zoomLimit = false
+    if (isAllControlsDisabled(this.settings.chart)) {
+      zoomLimit = this.settings.limit
+    } else {
+      zoomLimit = this.settings.zoom
+    }
+    if (zoomLimit) this.setZoom(zoomLimit)
     if (this.settings.bin) this.setBin(this.settings.bin)
 
     var ogLegendGenerator = Dygraph.Plugins.Legend.generateLegendHTML
@@ -414,6 +422,7 @@ export default class extends Controller {
       valueRange: [null, null],
       dateWindow: [null, null],
       visibility: null,
+      plotter: null,
       y2label: null,
       stepPlot: false,
       axes: {},
@@ -514,6 +523,7 @@ export default class extends Controller {
       case 'duration-btw-blocks': // Duration between blocks graph
         d = zipXYData(data, true, true)
         assign(gOptions, mapDygraphOptions(d, [xlabel, 'Blocks Count'], false, 'Count of Blocks', false, false))
+        gOptions.plotter = barChartPlotter
         summation = data.y.reduce((total, n) => total + n)
         break
 
@@ -554,22 +564,28 @@ export default class extends Controller {
     }
 
     if (selectedChart !== selection || this.settings.bin !== this.selectedBin() ||
-      (this.settings.axis !== this.selectedAxis() && this.selectedAxis())) {
-      let url = '/api/chart/' + selection
-      if (!isBinDisabled(selection) && !isAllControlsDisabled(selection)) {
+      (this.settings.axis !== this.selectedAxis() && this.selectedAxis()) ||
+      isAllControlsDisabled(selection)) {
+      let searchParams = new URLSearchParams()
+      if (isAllControlsDisabled(selection)) {
+        var selected = this.selectedZoom()
+        if (selected) searchParams.append('limit', selected)
+      } else if (!isBinDisabled(selection)) {
         this.settings.bin = this.selectedBin()
         if (!this.settings.bin) this.settings.bin = 'day' // Set the default.
-        url += `?bin=${this.settings.bin}`
+        searchParams.append('bin', this.settings.bin)
         this.setActiveOptionBtn(this.settings.bin, this.binSizeTargets)
 
         this.settings.axis = this.selectedAxis()
         if (!this.settings.axis) this.settings.axis = 'time' // Set the default.
         if (this.settings.bin === 'day' && this.settings.axis === 'height') {
-          url += `&axis=${this.settings.axis}`
+          searchParams.append('axis', this.settings.axis)
         }
         this.setActiveOptionBtn(this.settings.axis, this.axisOptionTargets)
       }
 
+      let url = '/api/chart/' + selection
+      if (searchParams.toString()) url += '?' + searchParams.toString()
       let chartResponse = await axios.get(url)
       console.log('got api data', chartResponse, this, selection)
       selectedChart = selection
@@ -592,7 +608,7 @@ export default class extends Controller {
     } else {
       this.lastZoom = Zoom.project(this.settings.zoom, oldLimits, this.limits)
     }
-    if (this.lastZoom) {
+    if (this.lastZoom && !isAllControlsDisabled(this.chartSelectTarget.value)) {
       this.chartsView.updateOptions({
         dateWindow: [this.lastZoom.start, this.lastZoom.end]
       })
@@ -609,6 +625,11 @@ export default class extends Controller {
   }
 
   _zoomCallback (start, end) {
+    if (customXLabel(this.chartSelectTarget.value) !== '') {
+      this.settings.limit = this.selectedZoom()
+      this.query.replace(this.settings)
+      return
+    }
     this.lastZoom = Zoom.object(start, end)
     this.settings.zoom = Zoom.encode(this.lastZoom)
     this.query.replace(this.settings)
@@ -621,7 +642,7 @@ export default class extends Controller {
   }
 
   isTimeAxis () {
-    return this.selectedAxis() === 'time' && customXLabel(this.chartWrapperTarget.value) !== ''
+    return this.selectedAxis() === 'time' && customXLabel(this.chartSelectTarget.value) !== ''
   }
 
   _drawCallback (graph, first) {
@@ -634,10 +655,10 @@ export default class extends Controller {
   }
 
   toggleAllControls (isAllDisabled) {
-    this.toggleScaleControls(isAllDisabled)
-    this.toggleZoomControls(isAllDisabled)
     this.toggleBinControls(isAllDisabled)
     this.toggleAxisControls(isAllDisabled)
+    this.toggleScaleControls(isAllDisabled)
+    this.toggleZoomLabelControls(isAllDisabled)
   }
 
   toggleScaleControls (isScaleDisabled, isVEnabled) {
@@ -648,9 +669,11 @@ export default class extends Controller {
     isScaleDisabled && isVEnabled && true ? vControl.remove('d-hide') : vControl.add('d-hide')
   }
 
-  toggleZoomControls (isZoomDisabled) {
-    var zoomControl = this.zoomSelectorTarget.classList
+  toggleZoomLabelControls (isZoomDisabled) {
+    var zoomControl = this.zoomLabelTarget.classList
+    var limitControl = this.limitLabelTarget.classList
     isZoomDisabled ? zoomControl.add('d-hide') : zoomControl.remove('d-hide')
+    isZoomDisabled ? limitControl.remove('d-hide') : limitControl.add('d-hide')
   }
 
   toggleBinControls (isBinControls) {
@@ -675,6 +698,7 @@ export default class extends Controller {
       option = target.dataset.option
     }
     this.setActiveOptionBtn(option, this.zoomOptionTargets)
+    if (customXLabel(this.chartSelectTarget.value) !== '') return this.selectChart()
     if (!target) return // Exit if running for the first time
     this.validateZoom()
   }
