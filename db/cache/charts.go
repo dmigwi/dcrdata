@@ -9,6 +9,7 @@ import (
 	"encoding/gob"
 	"encoding/json"
 	"fmt"
+	"math"
 	"os"
 	"sort"
 	"strconv"
@@ -918,10 +919,10 @@ func (charts *ChartData) Chart(chartID, binString, axisString, limitString strin
 	bin := ParseBin(binString)
 	axis := ParseAxis(axisString)
 	limit, duration := ParseLimit(limitString)
-	cache, found, cacheID := charts.getCache(chartID, bin, axis, limit)
-	if found && cache.cacheID == cacheID {
-		return cache.data, nil
-	}
+	// cache, found, cacheID := charts.getCache(chartID, bin, axis, limit)
+	// if found && cache.cacheID == cacheID {
+	// 	return cache.data, nil
+	// }
 	maker, hasMaker := chartMakers[chartID]
 	if !hasMaker {
 		return nil, UnknownChartErr
@@ -982,13 +983,13 @@ func accumulate(data ChartUints) ChartUints {
 // Translate the times slice to a slice of differences. The original dataset
 // minus the first element is returned for convenience. limit defines the number
 // of blocks to consider for the current limitType from the best block.
-func blockTimes(blocks ChartUints, limit int) (ChartUints, ChartUints) {
+func blockTimes(blocks ChartUints, limit int) (ChartUints, ChartUints, ChartFloats) {
 	dataLen := len(blocks)
 	keys := make(ChartUints, 0, len(blocks))
 	if dataLen < 2 {
 		// Fewer than two data points is invalid for btw. Return empty data sets so
 		// that the JSON encoding will have the correct type.
-		return keys, keys
+		return keys, keys, newChartFloats(len(blocks))
 	}
 
 	var k int
@@ -998,7 +999,7 @@ func blockTimes(blocks ChartUints, limit int) (ChartUints, ChartUints) {
 
 	last := blocks[k]
 	k++
-	var tracker = make(map[uint64]uint64, 0)
+	tracker := make(map[uint64]uint64, 0)
 	for _, v := range blocks[k:] {
 		dif := v - last
 		if int64(dif) < 0 {
@@ -1011,14 +1012,49 @@ func blockTimes(blocks ChartUints, limit int) (ChartUints, ChartUints) {
 		tracker[dif]++
 	}
 
-	var count = newChartUints(len(tracker))
-	sort.Slice(keys, func(i, j int) bool { return keys[i] < keys[j] })
-
-	for _, v := range keys {
-		count = append(count, tracker[v])
+	var sumTotal, sumFx uint64
+	for x, fx := range tracker {
+		sumTotal += x * fx
+		sumFx += fx
 	}
 
-	return keys, count
+	// bucketSize distribution grouping in sec.
+	bucketSize := uint64(30)
+
+	// lambda is the mean of the distribution
+	lambda := float64(sumTotal) / float64(sumFx)
+	lambda = lambda / float64(bucketSize)
+	ePow := math.Exp(lambda * -1)
+
+	var count = newChartUints(len(tracker))
+	var newKeys = newChartUints(len(tracker))
+	var poisonDistr = newChartFloats(len(tracker))
+	sort.Slice(keys, func(i, j int) bool { return keys[i] < keys[j] })
+
+	var tally uint64
+
+	upperLimit := bucketSize
+	for _, timeVal := range keys {
+		tally += tracker[timeVal]
+		if timeVal >= upperLimit {
+			event := float64(timeVal) / float64(bucketSize)
+			var distr = math.Pow(lambda, event) * ePow / dbtypes.Factorial(event)
+			// check for infinity value returned.
+			if math.IsInf(distr, 0) {
+				distr = 0
+			} else {
+				distr = math.Round(distr*1e4) / 1e2
+			}
+
+			count = append(count, tally)
+			newKeys = append(newKeys, timeVal)
+			poisonDistr = append(poisonDistr, distr)
+
+			upperLimit += bucketSize
+			tally = 0
+		}
+	}
+	return newKeys, count, poisonDistr
 }
 
 func blockSizeChart(charts *ChartData, bin binLevel, axis axisType, _ uint64) ([]byte, error) {

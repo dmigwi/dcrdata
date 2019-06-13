@@ -125,6 +125,10 @@ function legendFormatter (data) {
           yVal = (Math.float(series.y) / 1e4) + '%'
           break
 
+        case 'expected':
+          yVal = series.y + '%'
+          break
+
         case 'blocks count':
           yVal = intComma(series.y) + ' (' + Math.float((series.y / summation) * 1e4) / 1e2 + '%)'
           break
@@ -521,10 +525,17 @@ export default class extends Controller {
         break
 
       case 'duration-btw-blocks': // Duration between blocks graph
-        d = zipXYData(data, true, true)
-        assign(gOptions, mapDygraphOptions(d, [xlabel, 'Blocks Count'], false, 'Count of Blocks', false, false))
-        gOptions.plotter = barChartPlotter
+        d = zipXYZData(data, true, true)
+        assign(gOptions, mapDygraphOptions(d, [xlabel, 'Blocks Count', 'Expected'], false, 'Count of Blocks', false, false))
+        gOptions.y2label = 'Expected (%)'
+        gOptions.axes.y2 = { axisLabelFormatter: (y) => Math.round(y) }
         summation = data.y.reduce((total, n) => total + n)
+        gOptions.series = {
+          'Expected': {
+            axis: 'y2',
+            plotter: barChartPlotter
+          }
+        }
         break
 
       case 'chainwork': // Total chainwork over time
@@ -698,8 +709,8 @@ export default class extends Controller {
       option = target.dataset.option
     }
     this.setActiveOptionBtn(option, this.zoomOptionTargets)
-    if (customXLabel(this.chartSelectTarget.value) !== '') return this.selectChart()
     if (!target) return // Exit if running for the first time
+    if (customXLabel(this.chartSelectTarget.value) !== '') return this.selectChart()
     this.validateZoom()
   }
 

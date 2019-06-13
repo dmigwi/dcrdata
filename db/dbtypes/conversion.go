@@ -107,3 +107,17 @@ func CalculateWindowIndex(height, stakeDiffWindowSize int64) int64 {
 	}
 	return index
 }
+
+// Factorial is a recursive function that obtains the factorial a value. 0! equals 1.
+func Factorial(n float64) (res float64) {
+	if n > 20 {
+		return 0
+	}
+
+	if n > 0 {
+		res = n * Factorial(n-1)
+		return res
+	}
+
+	return 1
+}
