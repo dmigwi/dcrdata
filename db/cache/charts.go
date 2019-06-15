@@ -919,10 +919,10 @@ func (charts *ChartData) Chart(chartID, binString, axisString, limitString strin
 	bin := ParseBin(binString)
 	axis := ParseAxis(axisString)
 	limit, duration := ParseLimit(limitString)
-	// cache, found, cacheID := charts.getCache(chartID, bin, axis, limit)
-	// if found && cache.cacheID == cacheID {
-	// 	return cache.data, nil
-	// }
+	cache, found, cacheID := charts.getCache(chartID, bin, axis, limit)
+	if found && cache.cacheID == cacheID {
+		return cache.data, nil
+	}
 	maker, hasMaker := chartMakers[chartID]
 	if !hasMaker {
 		return nil, UnknownChartErr
@@ -1043,7 +1043,7 @@ func blockTimes(blocks ChartUints, limit int) (ChartUints, ChartUints, ChartFloa
 			if math.IsInf(distr, 0) {
 				distr = 0
 			} else {
-				distr = math.Round(distr*1e4) / 1e2
+				distr = math.Round(distr*float64(sumFx)*1e2) / 1e2
 			}
 
 			count = append(count, tally)

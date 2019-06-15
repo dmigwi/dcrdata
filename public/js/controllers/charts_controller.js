@@ -22,7 +22,7 @@ const chartsToHideAll = ['duration-btw-blocks']
 // index 0 represents y1 and 1 represents y2 axes.
 const yValueRanges = { 'ticket-price': [1] }
 const altXLabel = { 'duration-btw-blocks': 'Duration Between Blocks (Seconds)' }
-var ticketPoolSizeTarget, premine, stakeValHeight, stakeShare, summation
+var ticketPoolSizeTarget, premine, stakeValHeight, stakeShare
 var baseSubsidy, subsidyInterval, subsidyExponent, windowSize, avgBlockTime
 var rawCoinSupply, rawPoolValue
 
@@ -526,10 +526,9 @@ export default class extends Controller {
 
       case 'duration-btw-blocks': // Duration between blocks graph
         d = zipXYZData(data, true, true)
-        assign(gOptions, mapDygraphOptions(d, [xlabel, 'Blocks Count', 'Expected'], false, 'Count of Blocks', false, false))
-        gOptions.y2label = 'Expected (%)'
+        assign(gOptions, mapDygraphOptions(d, [xlabel, 'Actual Blocks Count', 'Expected'], false, 'Count of Blocks', false, false))
+        gOptions.y2label = 'Expected Blocks Count'
         gOptions.axes.y2 = { axisLabelFormatter: (y) => Math.round(y) }
-        summation = data.y.reduce((total, n) => total + n)
         gOptions.series = {
           'Expected': {
             axis: 'y2',
