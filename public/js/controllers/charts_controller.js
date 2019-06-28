@@ -22,7 +22,7 @@ const chartsToHideAll = ['duration-btw-blocks']
 // index 0 represents y1 and 1 represents y2 axes.
 const yValueRanges = { 'ticket-price': [1] }
 const altXLabel = { 'duration-btw-blocks': 'Duration Between Blocks (Seconds)' }
-var ticketPoolSizeTarget, premine, stakeValHeight, stakeShare
+var ticketPoolSizeTarget, premine, stakeValHeight, stakeShare, sum
 var baseSubsidy, subsidyInterval, subsidyExponent, windowSize, avgBlockTime
 var rawCoinSupply, rawPoolValue
 
@@ -125,12 +125,12 @@ function legendFormatter (data) {
           yVal = (Math.float(series.y) / 1e4) + '%'
           break
 
-        case 'expected':
-          yVal = series.y + '%'
+        case 'actual count':
+          yVal = series.y + ' (' + ((series.y * 100) / sum).toFixed(2) + '%)'
           break
 
-        case 'blocks count':
-          yVal = intComma(series.y) + ' (' + Math.float((series.y / summation) * 1e4) / 1e2 + '%)'
+        case 'expected count':
+          yVal = series.y + ' (' + ((series.y * 100) / sum).toFixed(2) + '%)'
           break
       }
       let result = `${nodes} <div class="pr-2">${series.dashHTML} ${series.labelHTML}: ${yVal}</div>`
@@ -526,8 +526,9 @@ export default class extends Controller {
 
       case 'duration-btw-blocks': // Duration between blocks graph
         d = zipXYZData(data, true, true)
-        assign(gOptions, mapDygraphOptions(d, [xlabel, 'Actual Blocks Count', 'Expected'], false, 'Count of Blocks', false, false))
-        gOptions.y2label = 'Expected Blocks Count'
+        assign(gOptions, mapDygraphOptions(d, [xlabel, 'Actual Count', 'Expected Count'], false, 'Blocks Count', false, false))
+        sum = data.y.reduce((total, n) => total + n)
+        gOptions.y2label = 'Expected'
         gOptions.axes.y2 = { axisLabelFormatter: (y) => Math.round(y) }
         gOptions.series = {
           'Expected': {

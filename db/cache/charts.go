@@ -379,17 +379,17 @@ type ChartUpdater struct {
 // and Windows fields must be updated by (presumably) a database package. The
 // Days data is auto-generated from the Blocks data during Lengthen-ing.
 type ChartData struct {
-	mtx          sync.RWMutex
-	ctx          context.Context
-	DiffInterval int32
-	AVGBlockTime uint64
-	StartPOS     int32
-	Blocks       *zoomSet
-	Windows      *windowSet
-	Days         *zoomSet
-	cacheMtx     sync.RWMutex
-	cache        map[string]*cachedChart
-	updaters     []ChartUpdater
+	mtx            sync.RWMutex
+	ctx            context.Context
+	DiffInterval   int32
+	BlockTimeInSec uint64
+	StartPOS       int32
+	Blocks         *zoomSet
+	Windows        *windowSet
+	Days           *zoomSet
+	cacheMtx       sync.RWMutex
+	cache          map[string]*cachedChart
+	updaters       []ChartUpdater
 }
 
 // Check that the length of all arguments is equal.
@@ -828,15 +828,15 @@ func NewChartData(ctx context.Context, height uint32, chainParams *chaincfg.Para
 	days := int(time.Since(genesis)/time.Hour/24)*5/4 + 1 // at least one day
 	windows := int(base64Height/chainParams.StakeDiffWindowSize+1) * 5 / 4
 	return &ChartData{
-		ctx:          ctx,
-		DiffInterval: int32(chainParams.StakeDiffWindowSize),
-		AVGBlockTime: uint64(chainParams.TargetTimePerBlock.Seconds()),
-		StartPOS:     int32(chainParams.StakeValidationHeight),
-		Blocks:       newBlockSet(size),
-		Windows:      newWindowSet(windows),
-		Days:         newDaySet(days),
-		cache:        make(map[string]*cachedChart),
-		updaters:     make([]ChartUpdater, 0),
+		ctx:            ctx,
+		DiffInterval:   int32(chainParams.StakeDiffWindowSize),
+		BlockTimeInSec: uint64(chainParams.TargetTimePerBlock.Seconds()),
+		StartPOS:       int32(chainParams.StakeValidationHeight),
+		Blocks:         newBlockSet(size),
+		Windows:        newWindowSet(windows),
+		Days:           newDaySet(days),
+		cache:          make(map[string]*cachedChart),
+		updaters:       make([]ChartUpdater, 0),
 	}
 }
 
@@ -918,7 +918,7 @@ var chartMakers = map[string]ChartMaker{
 func (charts *ChartData) Chart(chartID, binString, axisString, limitString string) ([]byte, error) {
 	bin := ParseBin(binString)
 	axis := ParseAxis(axisString)
-	limit, duration := ParseLimit(limitString)
+	limit, durationInSec := ParseLimit(limitString)
 	cache, found, cacheID := charts.getCache(chartID, bin, axis, limit)
 	if found && cache.cacheID == cacheID {
 		return cache.data, nil
@@ -930,7 +930,7 @@ func (charts *ChartData) Chart(chartID, binString, axisString, limitString strin
 	// Do the locking here, rather than in encodeXY, so that the helper functions
 	// (accumulate, btw) are run under lock.
 	charts.mtx.RLock()
-	data, err := maker(charts, bin, axis, duration)
+	data, err := maker(charts, bin, axis, durationInSec)
 	charts.mtx.RUnlock()
 	if err != nil {
 		return nil, err
@@ -998,6 +998,7 @@ func blockTimes(blocks ChartUints, limit int) (ChartUints, ChartUints, ChartFloa
 	}
 
 	last := blocks[k]
+	var sumFx = uint64(len(blocks[k:]))
 	k++
 	tracker := make(map[uint64]uint64, 0)
 	for _, v := range blocks[k:] {
@@ -1012,23 +1013,12 @@ func blockTimes(blocks ChartUints, limit int) (ChartUints, ChartUints, ChartFloa
 		tracker[dif]++
 	}
 
-	var sumTotal, sumFx uint64
-	for x, fx := range tracker {
-		sumTotal += x * fx
-		sumFx += fx
-	}
-
 	// bucketSize distribution grouping in sec.
-	bucketSize := uint64(30)
+	bucketSize := uint64(300)
 
-	// lambda is the mean of the distribution
-	lambda := float64(sumTotal) / float64(sumFx)
-	lambda = lambda / float64(bucketSize)
-	ePow := math.Exp(lambda * -1)
-
-	var count = newChartUints(len(tracker))
-	var newKeys = newChartUints(len(tracker))
-	var poisonDistr = newChartFloats(len(tracker))
+	var xValue = newChartUints(len(tracker))
+	var blockCount = newChartUints(len(tracker))
+	var expDistr = newChartFloats(len(tracker))
 	sort.Slice(keys, func(i, j int) bool { return keys[i] < keys[j] })
 
 	var tally uint64
@@ -1037,24 +1027,19 @@ func blockTimes(blocks ChartUints, limit int) (ChartUints, ChartUints, ChartFloa
 	for _, timeVal := range keys {
 		tally += tracker[timeVal]
 		if timeVal >= upperLimit {
-			event := float64(timeVal) / float64(bucketSize)
-			var distr = math.Pow(lambda, event) * ePow / dbtypes.Factorial(event)
-			// check for infinity value returned.
-			if math.IsInf(distr, 0) {
-				distr = 0
-			} else {
-				distr = math.Round(distr*float64(sumFx)*1e2) / 1e2
-			}
 
-			count = append(count, tally)
-			newKeys = append(newKeys, timeVal)
-			poisonDistr = append(poisonDistr, distr)
+			distr := math.Exp(float64(timeVal) / 300.0 * -1)
+			distr = math.Round(distr*float64(sumFx)*1e2) / 1e2
+
+			xValue = append(xValue, timeVal)
+			blockCount = append(blockCount, tally)
+			expDistr = append(expDistr, distr)
 
 			upperLimit += bucketSize
 			tally = 0
 		}
 	}
-	return newKeys, count, poisonDistr
+	return xValue, blockCount, expDistr
 }
 
 func blockSizeChart(charts *ChartData, bin binLevel, axis axisType, _ uint64) ([]byte, error) {
@@ -1117,12 +1102,12 @@ func coinSupplyChart(charts *ChartData, bin binLevel, axis axisType, _ uint64) (
 	return nil, InvalidBinErr
 }
 
-// durationLimit helps to calculate the number of blocks to consider in the dataset
+// durationLimitInSec helps to calculate the number of blocks to consider in the dataset
 // from the best block.
-func durationBTWChart(charts *ChartData, bin binLevel, axis axisType, durationLimit uint64) ([]byte, error) {
+func durationBTWChart(charts *ChartData, bin binLevel, axis axisType, durationLimitInSec uint64) ([]byte, error) {
 	var interval int
-	if durationLimit > charts.AVGBlockTime {
-		interval = int(durationLimit / charts.AVGBlockTime)
+	if durationLimitInSec > charts.BlockTimeInSec {
+		interval = int(durationLimitInSec / charts.BlockTimeInSec)
 	}
 	return charts.encode(blockTimes(charts.Blocks.Time, interval))
 }
