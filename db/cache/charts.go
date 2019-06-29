@@ -83,7 +83,7 @@ func ParseAxis(aType string) axisType {
 }
 
 // ParseLimit returns the matching limit type and the corresponding limit
-// duration in seconds. The default is "all" when no limit is set or error occured.
+// duration in seconds. The default is "all" when no limit is set or error occurred.
 func ParseLimit(limit string) (string, uint64) {
 	limitLevel := dbtypes.TimeGroupingFromStr(limit)
 	timeInSecs, err := dbtypes.TimeBasedGroupingToInterval(limitLevel)
@@ -999,7 +999,7 @@ func blockTimes(blocks ChartUints, limit int) (ChartUints, ChartUints, ChartFloa
 
 	last := blocks[k]
 	k++
-	tracker := make(map[uint64]uint64, 0)
+	tracker := make(map[uint64]uint64)
 	for _, v := range blocks[k:] {
 		dif := v - last
 		if int64(dif) < 0 {
@@ -1246,7 +1246,7 @@ func missedVotesChart(charts *ChartData, _ binLevel, _ axisType, _ uint64) ([]by
 		charts.Windows.MissedVotes[stakeValidWindows:])
 }
 
-func stakedCoinsChart(charts *ChartData, bin binLevel, axis axisType) ([]byte, error) {
+func stakedCoinsChart(charts *ChartData, bin binLevel, axis axisType, _ uint64) ([]byte, error) {
 	switch bin {
 	case BlockBin:
 		return charts.encode(charts.Blocks.Time, accumulate(charts.Blocks.NewAtoms),
