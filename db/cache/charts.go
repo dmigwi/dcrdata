@@ -998,7 +998,6 @@ func blockTimes(blocks ChartUints, limit int) (ChartUints, ChartUints, ChartFloa
 	}
 
 	last := blocks[k]
-	var sumFx = uint64(len(blocks[k:]))
 	k++
 	tracker := make(map[uint64]uint64, 0)
 	for _, v := range blocks[k:] {
@@ -1013,33 +1012,42 @@ func blockTimes(blocks ChartUints, limit int) (ChartUints, ChartUints, ChartFloa
 		tracker[dif]++
 	}
 
-	// bucketSize distribution grouping in sec.
-	bucketSize := uint64(300)
+	var sumF, sumFx uint64
+	for x, f := range tracker {
+		sumFx += f * x
+		sumF += f
+	}
+
+	var distrMean = float64(sumFx) / float64(sumF)
 
 	var xValue = newChartUints(len(tracker))
 	var blockCount = newChartUints(len(tracker))
-	var expDistr = newChartFloats(len(tracker))
+	var expectedDistr = newChartFloats(len(tracker))
 	sort.Slice(keys, func(i, j int) bool { return keys[i] < keys[j] })
 
-	var tally uint64
-
-	upperLimit := bucketSize
+	var lastDistr, lastTimestamp float64
 	for _, timeVal := range keys {
-		tally += tracker[timeVal]
-		if timeVal >= upperLimit {
-
-			distr := math.Exp(float64(timeVal) / 300.0 * -1)
-			distr = math.Round(distr*float64(sumFx)*1e2) / 1e2
-
-			xValue = append(xValue, timeVal)
-			blockCount = append(blockCount, tally)
-			expDistr = append(expDistr, distr)
-
-			upperLimit += bucketSize
-			tally = 0
+		timeInterval := float64(timeVal)
+		distr := math.Exp(timeInterval * -1 / distrMean)
+		// Check if timestamp value is not consecutive from the current i.e.
+		// current = previous + 1 recompute lastDistr to ensure a smooth curve.
+		if timeInterval-lastTimestamp > 1 {
+			lastDistr = math.Exp((timeInterval - 1) * -1 / distrMean)
 		}
+
+		var expectedCount float64
+		if lastDistr-distr > 0 {
+			expectedCount = (lastDistr - distr) * float64(sumF)
+		}
+
+		xValue = append(xValue, timeVal)
+		blockCount = append(blockCount, tracker[timeVal])
+		expectedDistr = append(expectedDistr, math.Floor(expectedCount*1e2)/1e2)
+
+		lastDistr = distr
+		lastTimestamp = timeInterval
 	}
-	return xValue, blockCount, expDistr
+	return xValue, blockCount, expectedDistr
 }
 
 func blockSizeChart(charts *ChartData, bin binLevel, axis axisType, _ uint64) ([]byte, error) {

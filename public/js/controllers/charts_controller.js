@@ -7,7 +7,7 @@ import { getDefault } from '../helpers/module_helper'
 import axios from 'axios'
 import TurboQuery from '../helpers/turbolinks_helper'
 import globalEventBus from '../services/event_bus_service'
-import { isEqual, barChartPlotter } from '../helpers/chart_helper'
+import { isEqual } from '../helpers/chart_helper'
 import dompurify from 'dompurify'
 
 var selectedChart
@@ -22,6 +22,10 @@ const chartsToHideAll = ['duration-btw-blocks']
 // index 0 represents y1 and 1 represents y2 axes.
 const yValueRanges = { 'ticket-price': [1] }
 const altXLabel = { 'duration-btw-blocks': 'Duration Between Blocks (Seconds)' }
+const chartsToShowVisibility = {
+  'ticket-price': { 'option1': 'Price', 'option2': 'Tickets Bought' },
+  'duration-btw-blocks': { 'option1': 'Actual Count', 'option2': 'Expected Count' }
+}
 var ticketPoolSizeTarget, premine, stakeValHeight, stakeShare, sum
 var baseSubsidy, subsidyInterval, subsidyExponent, windowSize, avgBlockTime
 var rawCoinSupply, rawPoolValue
@@ -31,6 +35,7 @@ var isScaleDisabled = (chart) => chartsToHideScale.indexOf(chart) > -1
 var isAllControlsDisabled = (chart) => chartsToHideAll.indexOf(chart) > -1
 var customXLabel = (chart) => altXLabel[chart] || ''
 var intComma = (amount) => amount.toLocaleString(undefined, { maximumFractionDigits: 0 })
+var VisibilityLabels = (chart) => chartsToShowVisibility[chart] || null
 
 function axesToRestoreYRange (chartName, origYRange, newYRange) {
   let axesIndexes = yValueRanges[chartName]
@@ -319,15 +324,17 @@ export default class extends Controller {
       'axisOption',
       'binSelector',
       'scaleSelector',
-      'ticketsPurchase',
       'dualAxesSelector',
       'customAxisSelector',
       'customAxisOption',
-      'ticketsPrice',
+      'optionLabel1',
+      'optionLabel2',
       'limitLabel',
       'vSelector',
       'zoomLabel',
-      'binSize'
+      'binSize',
+      'option1',
+      'option2'
     ]
   }
 
@@ -426,7 +433,6 @@ export default class extends Controller {
       valueRange: [null, null],
       dateWindow: [null, null],
       visibility: null,
-      plotter: null,
       y2label: null,
       stepPlot: false,
       axes: {},
@@ -450,7 +456,7 @@ export default class extends Controller {
           'Price (DCR)', true, false))
         gOptions.y2label = 'Tickets Bought'
         gOptions.series = { 'Tickets Bought': { axis: 'y2' } }
-        this.visibility = [this.ticketsPriceTarget.checked, this.ticketsPurchaseTarget.checked]
+        this.visibility = [this.option1Target.checked, this.option2Target.checked]
         gOptions.visibility = this.visibility
         gOptions.axes.y2 = {
           valueRange: [0, windowSize * 20 * 8],
@@ -526,16 +532,11 @@ export default class extends Controller {
 
       case 'duration-btw-blocks': // Duration between blocks graph
         d = zipXYZData(data, true, true)
-        assign(gOptions, mapDygraphOptions(d, [xlabel, 'Actual Count', 'Expected Count'], false, 'Blocks Count', false, false))
+        assign(gOptions, mapDygraphOptions(d, [xlabel, 'Actual Count', 'Expected Count'], false,
+          'Blocks Count', false, false))
         sum = data.y.reduce((total, n) => total + n)
-        gOptions.y2label = 'Expected'
-        gOptions.axes.y2 = { axisLabelFormatter: (y) => Math.round(y) }
-        gOptions.series = {
-          'Expected': {
-            axis: 'y2',
-            plotter: barChartPlotter
-          }
-        }
+        this.visibility = [this.option1Target.checked, this.option2Target.checked]
+        gOptions.visibility = this.visibility
         break
 
       case 'chainwork': // Total chainwork over time
@@ -564,6 +565,7 @@ export default class extends Controller {
   }
 
   async selectChart () {
+    this.setVisibility()
     var selection = this.settings.chart = this.chartSelectTarget.value
     this.chartWrapperTarget.classList.add('loading')
     this.toggleAllControls(isAllControlsDisabled(selection))
@@ -571,7 +573,7 @@ export default class extends Controller {
       this.customAxisOptionTarget.innerHTML = customXLabel(selection)
     } else {
       this.toggleBinControls(isBinDisabled(selection))
-      this.toggleScaleControls(isScaleDisabled(selection), selection === 'ticket-price')
+      this.toggleScaleControls(isScaleDisabled(selection))
     }
 
     if (selectedChart !== selection || this.settings.bin !== this.selectedBin() ||
@@ -672,12 +674,14 @@ export default class extends Controller {
     this.toggleZoomLabelControls(isAllDisabled)
   }
 
-  toggleScaleControls (isScaleDisabled, isVEnabled) {
-    isVEnabled = isVEnabled || false
-    var scaleControl = this.scaleSelectorTarget.classList
+  toggleVisibilityControls (isVEnabled) {
     var vControl = this.vSelectorTarget.classList
+    isVEnabled ? vControl.remove('d-hide') : vControl.add('d-hide')
+  }
+
+  toggleScaleControls (isScaleDisabled) {
+    var scaleControl = this.scaleSelectorTarget.classList
     isScaleDisabled ? scaleControl.add('d-hide') : scaleControl.remove('d-hide')
-    isScaleDisabled && isVEnabled && true ? vControl.remove('d-hide') : vControl.add('d-hide')
   }
 
   toggleZoomLabelControls (isZoomDisabled) {
@@ -748,12 +752,18 @@ export default class extends Controller {
   }
 
   setVisibility (e) {
-    if (this.chartSelectTarget.value !== 'ticket-price') return
-    if (!this.ticketsPriceTarget.checked && !this.ticketsPurchaseTarget.checked) {
-      this.ticketsPriceTarget.checked = this.visibility[0]
-      this.ticketsPurchaseTarget.checked = this.visibility[1]
+    var labelStr = VisibilityLabels(this.chartSelectTarget.value)
+    this.toggleVisibilityControls(labelStr)
+    if (!labelStr) return
+
+    this.optionLabel1Target.innerHTML = labelStr.option1
+    this.optionLabel2Target.innerHTML = labelStr.option2
+
+    if (!this.option1Target.checked && !this.option2Target.checked) {
+      this.option1Target.checked = this.visibility[0]
+      this.option2Target.checked = this.visibility[1]
     } else {
-      this.visibility = [this.ticketsPriceTarget.checked, this.ticketsPurchaseTarget.checked]
+      this.visibility = [this.option1Target.checked, this.option2Target.checked]
       this.chartsView.updateOptions({ visibility: this.visibility })
     }
   }
