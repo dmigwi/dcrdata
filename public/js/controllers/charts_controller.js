@@ -127,7 +127,7 @@ function legendFormatter (data) {
           break
 
         case 'stake participation':
-          yVal = (Math.float(series.y) / 1e4) + '%'
+          yVal = (Math.floor(series.y) / 1e4) + '%'
           break
 
         case 'actual count':
@@ -430,8 +430,8 @@ export default class extends Controller {
       zoomCallback: null,
       drawCallback: null,
       logscale: this.settings.scale === 'log',
-      valueRange: [null, null],
-      dateWindow: [null, null],
+      valueRange: null,
+      dateWindow: null,
       visibility: null,
       y2label: null,
       stepPlot: false,
@@ -638,14 +638,20 @@ export default class extends Controller {
   }
 
   _zoomCallback (start, end) {
-    if (customXLabel(this.chartSelectTarget.value) !== '') {
+    let currentSettings = {}
+    if (this.isSpecialXAxis()) {
       this.settings.limit = this.selectedZoom()
-      this.query.replace(this.settings)
+      currentSettings = this.settings
+      this.query.nullEntry(currentSettings, ['zoom', 'axis', 'bin', 'scale'])
+      this.query.replace(currentSettings)
       return
     }
+
     this.lastZoom = Zoom.object(start, end)
     this.settings.zoom = Zoom.encode(this.lastZoom)
-    this.query.replace(this.settings)
+    currentSettings = this.settings
+    this.query.nullEntry(currentSettings, ['limit'])
+    this.query.replace(currentSettings)
     let ex = this.chartsView.xAxisExtremes()
     let option = Zoom.mapKey(this.settings.zoom, ex, this.isTimeAxis() ? 1 : avgBlockTime)
     this.setActiveOptionBtn(option, this.zoomOptionTargets)
@@ -654,8 +660,12 @@ export default class extends Controller {
     if (axesData) this.chartsView.updateOptions({ axes: axesData })
   }
 
+  isSpecialXAxis () {
+    return customXLabel(this.chartSelectTarget.value) !== ''
+  }
+
   isTimeAxis () {
-    return this.selectedAxis() === 'time' && customXLabel(this.chartSelectTarget.value) !== ''
+    return this.selectedAxis() === 'time'
   }
 
   _drawCallback (graph, first) {
@@ -714,7 +724,7 @@ export default class extends Controller {
     }
     this.setActiveOptionBtn(option, this.zoomOptionTargets)
     if (!target) return // Exit if running for the first time
-    if (customXLabel(this.chartSelectTarget.value) !== '') return this.selectChart()
+    if (this.isSpecialXAxis()) return this.selectChart()
     this.validateZoom()
   }
 

@@ -82,13 +82,18 @@ func ParseAxis(aType string) axisType {
 	}
 }
 
-// ParseLimit returns the matching limit type and the corresponding limit
+// ParseLimit returns the matching limit string and the corresponding limit
 // duration in seconds. The default is "all" when no limit is set or error occurred.
-func ParseLimit(limit string) (string, uint64) {
-	limitLevel := dbtypes.TimeGroupingFromStr(limit)
-	timeInSecs, err := dbtypes.TimeBasedGroupingToInterval(limitLevel)
-	if err != nil {
-		return "all", 0
+func ParseLimit(limitStr string) (string, uint64) {
+	var err error
+	var timeInSecs float64
+	limitLevel := dbtypes.TimeGroupingFromStr(limitStr)
+	// If the limitlevel is dbtypes.AllGrouping the timeInSecs should be zero.
+	if limitLevel != dbtypes.AllGrouping {
+		timeInSecs, err = dbtypes.TimeBasedGroupingToInterval(limitLevel)
+		if err != nil {
+			timeInSecs, limitLevel = 0, dbtypes.AllGrouping
+		}
 	}
 
 	return limitLevel.String(), uint64(timeInSecs)
@@ -844,7 +849,7 @@ func NewChartData(ctx context.Context, height uint32, chainParams *chaincfg.Para
 func cacheKey(chartID string, bin binLevel, axis axisType, limit string) string {
 	// The axis type is only required when bin level is set to DayBin.
 	if chartID == DurationBTW {
-		return chartID + "-" + string(bin) + "-" + limit
+		return chartID + "-" + limit
 	} else if bin == DayBin {
 		return chartID + "-" + string(bin) + "-" + string(axis)
 	}
@@ -980,44 +985,61 @@ func accumulate(data ChartUints) ChartUints {
 	return d
 }
 
-// Translate the times slice to a slice of differences. The original dataset
-// minus the first element is returned for convenience. limit defines the number
-// of blocks to consider for the current limitType from the best block.
-func blockTimes(blocks ChartUints, limit int) (ChartUints, ChartUints, ChartFloats) {
+// blockTimes enables two line graph charts showing the expected and actual
+// blocks count mined by a given time duration to be generated.
+// It translates the times slice to a slice of differences. The original dataset
+// minus the first element is returned for convenience. limitBlocks defines the
+// number of blocks from the best block (most recent block mined) back towards
+// the genesis block that were supposed to be mined in the limit string passed as
+// the API limit parameter. When the limit string API parameter selected is 'all'
+// the limitBlocks value passed is 0 indicating that all blocks will be used.
+func blockTimes(blocks ChartUints, limitBlocks int) (ChartUints, ChartUints, ChartFloats) {
 	dataLen := len(blocks)
-	keys := make(ChartUints, 0, len(blocks))
 	if dataLen < 2 {
 		// Fewer than two data points is invalid for btw. Return empty data sets so
-		// that the JSON encoding will have the correct type.
-		return keys, keys, newChartFloats(len(blocks))
+		// that the JSON encoding will have the correct type. Slices returned have
+		// a max capacity of 1.
+		return newChartUints(dataLen), newChartUints(dataLen), newChartFloats(dataLen)
 	}
 
 	var k int
-	if limit > 0 && limit < len(blocks) {
-		k = len(blocks) - limit
+
+	// With limit string 'all', limitBlocks is equal to zero thus k should be zero.
+	// Otherwise all other limit strings have limit values greater than zero thus
+	// k is greater than zero then.
+	if limitBlocks > 0 && limitBlocks < dataLen {
+		k = dataLen - limitBlocks
 	}
 
 	last := blocks[k]
 	k++
+
 	tracker := make(map[uint64]uint64)
+	keys := make(ChartUints, 0, dataLen)
+
 	for _, v := range blocks[k:] {
 		dif := v - last
+		// Convert to type int64 to detect a negative value of dif.
 		if int64(dif) < 0 {
 			dif = 0
 		}
 		last = v
+		// Check if dif value exists in the tracker map if not add it.
 		if _, ok := tracker[dif]; !ok {
 			keys = append(keys, dif)
 		}
 		tracker[dif]++
 	}
 
+	// sumF shows the summation of the frequency an sumFx shows the summation of
+	// the product between the frequency and actual block count (x).
 	var sumF, sumFx uint64
 	for x, f := range tracker {
 		sumFx += f * x
 		sumF += f
 	}
 
+	// sumF and sumFx are used to generate the actual distribution mean.
 	var distrMean = float64(sumFx) / float64(sumF)
 
 	var xValue = newChartUints(len(tracker))
