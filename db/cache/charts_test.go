@@ -326,7 +326,7 @@ func TestChartReorg(t *testing.T) {
 	testReorg(2, 2, 1, 1, 2)
 }
 
-func Test_blockTimes(t *testing.T) {
+func TestBlockTimes(t *testing.T) {
 	type args struct {
 		blocks ChartUints
 		limit  int
@@ -347,7 +347,6 @@ func Test_blockTimes(t *testing.T) {
 			},
 			want0: ChartUints{},
 			want1: ChartUints{},
-			want2: ChartFloats{},
 		},
 		{
 			name: "basicOK6",
@@ -357,7 +356,6 @@ func Test_blockTimes(t *testing.T) {
 			},
 			want0: ChartUints{4, 10, 13, 19},
 			want1: ChartUints{1, 1, 2, 1},
-			want2: ChartFloats{0.31, 0.18, 0.14, 0.08},
 		},
 		{
 			name: "basicOK7",
@@ -367,7 +365,6 @@ func Test_blockTimes(t *testing.T) {
 			},
 			want0: ChartUints{4, 10, 13, 19},
 			want1: ChartUints{1, 1, 2, 2},
-			want2: ChartFloats{0.35, 0.22, 0.17, 0.11},
 		},
 		{
 			name: "allBig",
@@ -377,7 +374,6 @@ func Test_blockTimes(t *testing.T) {
 			},
 			want0: ChartUints{4, 10, 13, 19},
 			want1: ChartUints{1, 1, 2, 2},
-			want2: ChartFloats{0.35, 0.22, 0.17, 0.11},
 		},
 		{
 			name: "all0",
@@ -387,7 +383,6 @@ func Test_blockTimes(t *testing.T) {
 			},
 			want0: ChartUints{4, 10, 13, 19},
 			want1: ChartUints{1, 1, 2, 2},
-			want2: ChartFloats{0.35, 0.22, 0.17, 0.11},
 		},
 		{
 			name: "1",
@@ -397,7 +392,6 @@ func Test_blockTimes(t *testing.T) {
 			},
 			want0: ChartUints{},
 			want1: ChartUints{},
-			want2: ChartFloats{},
 		},
 		{
 			name: "2",
@@ -407,20 +401,16 @@ func Test_blockTimes(t *testing.T) {
 			},
 			want0: ChartUints{19},
 			want1: ChartUints{1},
-			want2: ChartFloats{0.01}, // Is this right???
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, got1, got2 := blockTimes(tt.args.blocks, tt.args.limit)
+			got, got1 := blockTimes(tt.args.blocks, tt.args.limit)
 			if !reflect.DeepEqual(got, tt.want0) {
 				t.Errorf("blockTimes() got = %v, want %v", got, tt.want0)
 			}
 			if !reflect.DeepEqual(got1, tt.want1) {
 				t.Errorf("blockTimes() got1 = %v, want %v", got1, tt.want1)
-			}
-			if !reflect.DeepEqual(got2, tt.want2) {
-				t.Errorf("blockTimes() got2 = %v, want %v", got2, tt.want2)
 			}
 		})
 	}

@@ -300,6 +300,37 @@ function circulationFunc (gData, isHeightAxis, isDayBinned) {
   }
 }
 
+function durationBTwBlocksFunc (rawData) {
+  var xValue = rawData.x || []
+  var blockCount = rawData.y || []
+
+  var sumF = blockCount.reduce((total, n) => total + n)
+  var sumFx = blockCount.reduce((total, n, i) => total + (n * xValue[i]))
+
+  var distrMean = parseFloat(sumFx) / parseFloat(sumF)
+  var prevDistr, lastTimestamp
+  var data = []
+
+  for (var i = 0; i < xValue.length; i++) {
+    var timeVal = xValue[i]
+    var timeInterval = parseFloat(timeVal)
+    var distr = Math.exp(timeInterval * -1 / distrMean)
+    if ((timeInterval - lastTimestamp) > 1) prevDistr = Math.exp((timeInterval - 1) * -1 / distrMean)
+
+    var expectedCount = 0
+    var diffDistr = prevDistr - distr
+    if (diffDistr > 0) {
+      expectedCount = Math.floor(diffDistr * parseFloat(sumF) * 1e2) / 1e2
+    }
+
+    data.push([xValue[i], blockCount[i], expectedCount])
+
+    prevDistr = distr
+    lastTimestamp = timeInterval
+  }
+  return data
+}
+
 function mapDygraphOptions (data, labelsVal, isDrawPoint, yLabel, labelsMG, labelsMG2) {
   return merge({
     'file': data,
@@ -531,7 +562,7 @@ export default class extends Controller {
         break
 
       case 'duration-btw-blocks': // Duration between blocks graph
-        d = zipXYZData(data, true, true)
+        d = durationBTwBlocksFunc(data)
         assign(gOptions, mapDygraphOptions(d, [xlabel, 'Actual Count', 'Expected Count'], false,
           'Blocks Count', false, false))
         sum = data.y.reduce((total, n) => total + n)
